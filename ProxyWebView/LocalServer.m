@@ -7,6 +7,7 @@
 
 #import "LocalServer.h"
 #import <Network/Network.h>
+#import <MobileCoreServices/MobileCoreServices.h>
 #import <UIKit/UIKit.h>
 
 @interface LocalServer()
@@ -129,17 +130,18 @@
           NSLog(@"[LocalServer] data string: %@", dataString);
           
           NSURL *url = [[NSBundle mainBundle] URLForResource:@"vault_boy" withExtension:@"jpeg"];
-          NSData *image_data = [NSData dataWithContentsOfURL:url];
+//          NSData *image_data = [NSData dataWithContentsOfURL:url];
+          NSData *file_data = [self loadResource:dataString];
           
           NSString *httpResponse = [NSString stringWithFormat:@"HTTP/1.1 200 OK\r\n"
-                                    "Content-Type: image/jpeg\r\n"
+                                    "Content-Type: */*\r\n"
                                     "Content-Length: %lu\r\n"
                                     "Connection: keep-alive\r\n"
-                                    "\r\n", (unsigned long)image_data.length];
+                                    "\r\n", (unsigned long)file_data.length];
           
           NSMutableData *res = [NSMutableData data];
           [res appendData:[httpResponse dataUsingEncoding:NSUTF8StringEncoding]];
-          [res appendData:image_data];
+          [res appendData:file_data];
           
           NSLog(@"[LocalServer] response data: %ld", [res length]);
           
@@ -152,15 +154,6 @@
           });
           
           NSLog(@"[LocalServer] connection receive: %@ error: %@", is_complete ? @"yes" : @"no", error);
-//          dispatch_write(STDOUT_FILENO, content, dispatch_get_main_queue(), ^(dispatch_data_t  _Nullable data, int error) {
-//            
-//            if (error != 0) {
-//              NSLog(@"[LocalServer] error writing data!");
-//            } else {
-//              NSLog(@"[LocalServer] succesfully wrote data!");
-//            }
-//          });
-//          
         });
       }
     });
@@ -168,65 +161,42 @@
     nw_connection_start(connection);
   });
   
-  // Set the new connection handler
-//  nw_listener_set_new_connection_handler(self.listener, ^(nw_connection_t connection) {
-//    self.currentConnection = connection;
-//    nw_connection_set_queue(self.currentConnection, self.queue);
-//    [self handleNewConnection:self.currentConnection];
-//  });
 
-  // Start the listener
+  // start the listener
   nw_listener_start(self.listener);
 }
 
-- (void)handleNewConnection:(nw_connection_t)connection {
-  NSLog(@"[LocalServer] handle new connection: %@", connection.description);
-  // Set the state change handler for the connection
-  nw_connection_set_state_changed_handler(connection, ^(nw_connection_state_t state, nw_error_t error) {
-    if (state == nw_connection_state_ready) {
-      NSLog(@"[LocalServer] accepted new connection");
-      [self receiveRequestOnConnection:connection];
-    } else if (state == nw_connection_state_failed) {
-      NSLog(@"[LocalServer] connection failed with error: %@", error);
+
+- (NSData *)loadResource:(NSString *)headers {
+  
+  NSRange getRange = [headers rangeOfString:@"GET /"];
+  if (getRange.location != NSNotFound) {
+    NSRange httpRange = [headers rangeOfString:@" HTTP/1.1"];
+    if (httpRange.location != NSNotFound) {
+      NSUInteger pathStart = NSMaxRange(getRange);
+      NSUInteger pathLength = httpRange.location - pathStart;
+      NSRange pathRange = NSMakeRange(pathStart, pathLength);
+      NSString *path = [headers substringWithRange:pathRange];
+      NSLog(@"[LocalServer] extracted path: %@", path);
+      
+      NSArray *info = [path componentsSeparatedByString:@"."];
+      NSString *fileName = [info objectAtIndex:0];
+      NSString *extension = [info objectAtIndex:1];
+      
+      NSLog(@"[LocalServer] filename: \"%@\" extension: \"%@\"", fileName, extension);
+      
+      NSURL *url = [[NSBundle mainBundle] URLForResource:fileName withExtension:extension];
+      NSData *data = [NSData dataWithContentsOfURL:url];
+      return data;
+      
+    } else {
+      NSLog(@"[LocalServer] HTTP version not found in request");
     }
-  });
-
-  // Start the connection
-  nw_connection_start(connection);
-}
-
-- (void)receiveRequestOnConnection:(nw_connection_t)connection {
-  // Set the receive handler
-  nw_connection_receive_message(connection, ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t receive_error) {
-    NSLog(@"[LocalServer] receive is_complete: %@", is_complete ? @"yes" : @"no");
-    
-      if (content) {
-          NSString *request = [[NSString alloc] initWithData:(NSData *)content encoding:NSUTF8StringEncoding];
-          NSLog(@"[LocalServer] received request: %@", request);
-
-          // Prepare a simple HTTP response
-          NSString *response = @"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello from the local HTTP server!";
-          NSData *responseData = [response dataUsingEncoding:NSUTF8StringEncoding];
-
-          // Send the response
-          dispatch_data_t responseDispatchData = dispatch_data_create((const void *)[responseData bytes], [responseData length], dispatch_get_main_queue(), ^{
-              // No cleanup needed
-          });
-
-          nw_connection_send(connection, responseDispatchData, NW_CONNECTION_DEFAULT_MESSAGE_CONTEXT, true, ^(nw_error_t send_error) {
-              if (send_error) {
-                  NSLog(@"Failed to send response with error: %@", send_error);
-              } else {
-                  NSLog(@"Response sent successfully");
-              }
-
-              // Close the connection
-              nw_connection_cancel(connection);
-          });
-      } else if (receive_error) {
-          NSLog(@"Failed to receive data with error: %@", receive_error);
-      }
-  });
+  } else {
+      NSLog(@"GET method not found in request");
+  }
+  
+  return [NSData data];
 }
 
 @end
