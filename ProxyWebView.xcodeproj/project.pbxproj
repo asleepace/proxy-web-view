@@ -18,6 +18,7 @@
 		2657917C2BFF04DA00ED054B /* LocalServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 2657917B2BFF04DA00ED054B /* LocalServer.m */; };
 		265791812BFF253600ED054B /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 265791802BFF253600ED054B /* index.html */; };
 		265791832BFF2E6000ED054B /* vault_boy.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 265791822BFF2E6000ED054B /* vault_boy.jpeg */; };
+		265791852BFF347F00ED054B /* Immaterial.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 265791842BFF347F00ED054B /* Immaterial.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +40,7 @@
 		2657917B2BFF04DA00ED054B /* LocalServer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LocalServer.m; sourceTree = "<group>"; };
 		265791802BFF253600ED054B /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		265791822BFF2E6000ED054B /* vault_boy.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = vault_boy.jpeg; sourceTree = "<group>"; };
+		265791842BFF347F00ED054B /* Immaterial.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Immaterial.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,6 +112,7 @@
 		2657917F2BFF252200ED054B /* Assets */ = {
 			isa = PBXGroup;
 			children = (
+				265791842BFF347F00ED054B /* Immaterial.ttf */,
 				265791822BFF2E6000ED054B /* vault_boy.jpeg */,
 				265791802BFF253600ED054B /* index.html */,
 			);
@@ -174,6 +177,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				265791812BFF253600ED054B /* index.html in Resources */,
+				265791852BFF347F00ED054B /* Immaterial.ttf in Resources */,
 				265791832BFF2E6000ED054B /* vault_boy.jpeg in Resources */,
 				265791662BFEF6C300ED054B /* Assets.xcassets in Resources */,
 				265791692BFEF6C300ED054B /* Base in Resources */,

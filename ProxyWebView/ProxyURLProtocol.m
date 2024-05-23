@@ -12,8 +12,10 @@
 #import <CFNetwork/CFProxySupport.h>
 
 
-@interface ProxyURLProtocol()
+@interface ProxyURLProtocol() <NSURLSessionDelegate>
+
 @property (nonatomic, strong) NSURLSessionDataTask *dataTask;
+
 @end
 
 @implementation ProxyURLProtocol
@@ -24,7 +26,6 @@
   NSString *scheme = [[request URL] scheme];
   
   return false;
-  
   return ([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"]);
 }
 
@@ -48,10 +49,10 @@
     (NSString *)kCFNetworkProxiesHTTPProxy: @"0.0.0.0",
     (NSString *)kCFNetworkProxiesHTTPPort: @8888,
     //  DEPRECATED: add proxy settings to the request
-    (NSString *)kCFStreamPropertyHTTPProxyHost: @"0.0.0.0",
-    (NSString *)kCFStreamPropertyHTTPProxyPort: @8888,
-    (NSString *)kCFStreamPropertyHTTPSProxyHost: @"0.0.0.0",
-    (NSString *)kCFStreamPropertyHTTPSProxyPort: @8888
+//    (NSString *)kCFStreamPropertyHTTPProxyHost: @"0.0.0.0",
+//    (NSString *)kCFStreamPropertyHTTPProxyPort: @8888,
+//    (NSString *)kCFStreamPropertyHTTPSProxyHost: @"0.0.0.0",
+//    (NSString *)kCFStreamPropertyHTTPSProxyPort: @8888
   };
   
 
@@ -61,16 +62,21 @@
   NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
   config.connectionProxyDictionary = proxyDict;
   
-  NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:self delegateQueue:nil];
-  self.dataTask = [session dataTaskWithRequest:newRequest completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+  NSOperationQueue *delegateQueue = [[NSOperationQueue alloc] init];
+  
+  NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:self delegateQueue:delegateQueue];
+  
+  NSLog(@"[ProxyURLProtocol] starting dataTask!");
+  self.dataTask = [session dataTaskWithRequest:newRequest completionHandler:
+                   ^(NSData *data, NSURLResponse *response, NSError *error) {
     NSLog(@"[ProxyURLProtocol] dataTask with data: %@ error: %@", data, error);
-      if (error) {
-          [self.client URLProtocol:self didFailWithError:error];
-      } else {
-          [self.client URLProtocol:self didReceiveResponse:response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
-          [self.client URLProtocol:self didLoadData:data];
-          [self.client URLProtocolDidFinishLoading:self];
-      }
+    if (error) {
+        [self.client URLProtocol:self didFailWithError:error];
+    } else {
+        [self.client URLProtocol:self didReceiveResponse:response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
+        [self.client URLProtocol:self didLoadData:data];
+        [self.client URLProtocolDidFinishLoading:self];
+    }
   }];
   [self.dataTask resume];
 }

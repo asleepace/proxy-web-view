@@ -4,6 +4,10 @@
 //
 //  Created by Colin Teahan on 5/22/24.
 //
+//  Associated domains:
+//  https://developer.apple.com/documentation/xcode/allowing-apps-and-websites-to-link-to-your-content
+//
+//
 
 #import "ViewController.h"
 
@@ -23,26 +27,36 @@
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
   // [self navigateTo:@"http://padlet.com/"];
-  [self testLocalServer];
+  // [self testLocalServer];
   
-  NSURL *url = [[NSBundle mainBundle] URLForResource:@"index" withExtension:@"html"];
+  // fonts work with local HTML
+  [self loadHTML:@"index"];
+  
+  // only works with HTTP
+  // [self navigateTo: @"http://dlabs.me/test/example.html"];
+  
+  // we need to sign for TLS to work
+//  [self navigateTo: @"http://dlabs.me/test/example.html"];
+}
+
+- (void)loadHTML:(NSString *)localFile {
+  NSLog(@"[ProxyWebView] loading HTML from local file...");
+  NSURL *url = [[NSBundle mainBundle] URLForResource:localFile withExtension:@"html"];
   [self.webView loadFileURL:url allowingReadAccessToURL:url];
-  
   NSURLRequest *request = [NSURLRequest requestWithURL:url];
   [self.webView loadRequest:request];
 }
 
+//  Send a test message to the local server
+//  although this will fail.
+//
 - (void)testLocalServer {
   NSLog(@"[ViewController] testing local server!");
-  
   NSURL *url = [NSURL URLWithString:@"http://0.0.0.0:8888"];
-  NSString *hello = [NSString stringWithFormat:@"Hello, world!"];
-  NSData *data = [hello dataUsingEncoding:NSUTF8StringEncoding];
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
   [request setValue:@"text/*" forHTTPHeaderField:@"Accept"];
   [request setHTTPMethod:@"GET"];
 //  [request setHTTPBody:data];
-  
   NSURLSession *session = [NSURLSession sharedSession];
   NSURLSessionDataTask *task = [session dataTaskWithRequest:request];
   [task resume];
@@ -104,7 +118,6 @@
     
   // setup process pool
   WKProcessPool *pool = [[WKProcessPool alloc] init];
-  
   
   // configure preferences and controllers
   configuration.defaultWebpagePreferences = pagePrefs;
