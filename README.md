@@ -2,7 +2,9 @@
 
 Runs a local server which intercepts HTTP requests which can be preloaded to the webview.
 
-![Simulator Screenshot - iPhone 15 - 2024-05-23 at 02 07 22](https://github.com/asleepace/proxy-web-view/assets/10716803/9987b4e0-ff9b-4663-9cbd-a245f00fb15e)
+|Local HTML|Remote HTTP|
+|----------|-----------|
+|![Simulator Screenshot - iPhone 15 - 2024-05-23 at 02 07 22](https://github.com/asleepace/proxy-web-view/assets/10716803/9987b4e0-ff9b-4663-9cbd-a245f00fb15e)|![Simulator Screenshot - iPhone 15 - 2024-05-23 at 02 07 22](https://github.com/asleepace/proxy-web-view/assets/10716803/9987b4e0-ff9b-4663-9cbd-a245f00fb15e)|
 
 ## How it works?
 
