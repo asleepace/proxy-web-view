@@ -8,6 +8,7 @@
 #import "LocalServer.h"
 #import <Network/Network.h>
 #import <MobileCoreServices/MobileCoreServices.h>
+#import <Security/Security.h>
 #import <UIKit/UIKit.h>
 
 @interface LocalServer()
@@ -16,6 +17,11 @@
 @property (nonatomic, strong) dispatch_queue_t queue;
 
 @property (retain, nonatomic) nw_connection_t currentConnection;
+@property (retain) sec_identity_t sec_identity;
+
+@property (retain) dispatch_data_t pkcs12data;
+@property (retain) dispatch_data_t pkcsIdentity;
+
 @property (atomic) SecIdentityRef identity;
 
 @property (nonatomic) uint16_t tlsEncryption;
@@ -41,7 +47,8 @@
     self.queue = dispatch_queue_create("local.server.queue", nil);
     self.tlsEncryption = tls_ciphersuite_ECDHE_RSA_WITH_AES_128_GCM_SHA256; //Default encryption
     //self.tlsEncryption = tls_ciphersuite_RSA_WITH_AES_128_GCM_SHA256;
-    self.dns = "http://0.0.0.0:8888";
+    //self.tlsEncryption = tls_ciphersuite_RSA_WITH_AES_128_GCM_SHA256;
+    self.dns = "0.0.0.0";
 
     [self startServer];
   }
@@ -57,81 +64,10 @@
 //
 - (void)startServer {
   
-//  let tcpOption = NWProtocolTCP.Options()
-//  tcpOption.enableKeepalive = true
-//  tcpOption.keepaliveIdle = 2
-  
-  // nw_protocol_options_t protocol = nw_protocol_copy_tcp_definition();
-  
-  // nw_parameters_t parameters = nw_parameters_create_secure_tcp(NW_PARAMS, NW_PARAMETERS_DEFAULT_CONFIGURATION);
-  // Create a listener
-  
-  // Toggle UDP/TCP
-  bool g_use_udp = false;
-  
-//    nw_parameters_t parameters = nw_parameters_create();
-    
-  nw_parameters_configure_protocol_block_t configure_tls = NW_PARAMETERS_DISABLE_PROTOCOL;
-  
-//  nw_parameters_t parameters;
-//  
-//  if (g_use_udp) {
-//      parameters = nw_parameters_create_secure_udp(
-//          configure_tls,
-//          NW_PARAMETERS_DEFAULT_CONFIGURATION
-//      );
-//  } else {
-//      parameters = nw_parameters_create_secure_tcp(
-//          configure_tls,
-//          NW_PARAMETERS_DEFAULT_CONFIGURATION
-//      );
-//  }
-  
+  //  TLS PARAMETERS
   nw_parameters_t parameters = [self tls_params];
-//  SecIdentityRef identity = [self createIdentity];
-//  NSLog(@"[LocalServer] created identity: %@", identity);
   
-//  nw_protocol_options_t options = nw_tls_create_options();
-//  nw_parameters_t tlsParams = nw_parameters_create_quic(^(nw_protocol_options_t  _Nonnull options) {
-//    
-//    
-//  });
-  
-//  // https://github.com/Apple-FOSS-Mirror/Security/blob/master/protocol/SecProtocolOptions.h
-//
-////  nw_parameters_t parameters = nw_parameters_create_secure_tcp(^(nw_protocol_options_t options) {
-////    sec_protocol_options_t secOptions = nw_tls_copy_sec_protocol_options(options);
-////    sec_protocol_options_set_local_identity(secOptions, CFBridgingRelease(identity));
-////    NSLog(@"[LocalServer] set local identity!");
-////  }, NW_PARAMETERS_DEFAULT_CONFIGURATION);
-//  
-//  //  START TLS
-// //  nw_protocol_options_t tls = nw_tls_create_options();
-//
-//  nw_protocol_options_t tlsOptions = nw_tls_create_options();
-//  sec_protocol_options_t secOptions = nw_tls_copy_sec_protocol_options(tlsOptions);
-//  
-//  // Set the local identity
-//  sec_protocol_options_set_local_identity(secOptions, (__bridge sec_identity_t _Nonnull)(identity));
-//  sec_protocol_options_set_challenge_block(secOptions, ^(sec_protocol_metadata_t  _Nonnull metadata, sec_protocol_challenge_complete_t  _Nonnull complete) {
-//    NSLog(@"[LocalServer] challenge block %@", complete);
-//    
-//  }, dispatch_get_main_queue());
-//  
-//  sec_protocol_options_set_verify_block(secOptions,
-//  ^(sec_protocol_metadata_t  _Nonnull metadata, sec_trust_t  _Nonnull trust_ref, sec_protocol_verify_complete_t  _Nonnull complete) {
-//    NSLog(@"[LocalServer] verify block %@", complete);
-//    
-//  }, dispatch_get_main_queue());
-//  // Create secure TCP parameters
-//
-//       
-//  // Set other TLS options as needed
-//  // For example, to disable certain versions of TLS:
-//  // sec_protocol_options_add_tls_version(secOptions, tls_protocol_version_TLSv12);
-//      
-//  //  END TLS
-  
+  //  SETUP ENDPOINT
   nw_endpoint_t endpoint = nw_endpoint_create_host("0.0.0.0", "8888");
   //nw_parameters_set_local_only(parameters, true);
   //nw_parameters_set_include_peer_to_peer(parameters, true);
@@ -173,6 +109,8 @@
       } else if (state == nw_connection_state_preparing) {
         NSLog(@"[LocalServer] preparing connection!");
         
+        nw_protocol_options_t tlsOptions = nw_tls_create_options();
+        
       } else if (state == nw_connection_state_invalid) {
         NSLog(@"[LocalServer] connection invalid!]");
 
@@ -183,7 +121,7 @@
         NSLog(@"[LocalServer] connection cancelled");
         // NOTE: we need to clear this connection
         //nw_release(connection);
-      } else if (state == nw_connection_state_ready) {
+      } else if (state == nw_connection_state_ready || state == nw_connection_state_preparing) {
         NSLog(@"[LocalServer] tell the user that you are connected");
         nw_connection_receive(connection, 1, UINT32_MAX,
             ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t receive_error) {
@@ -269,19 +207,6 @@
 
 #pragma mark - TLS Security
 
-- (void)tlsCertificate {
-  
-  SecIdentityRef identity = [self createIdentity];
-  if (identity == NULL) {
-      NSLog(@"Failed to create identity");
-      return;
-  }
-  
-  nw_protocol_options_t tlsOptions = nw_tls_create_options();
-  sec_protocol_options_t secOptions = nw_tls_copy_sec_protocol_options(tlsOptions);
-  sec_protocol_options_set_local_identity(secOptions, CFBridgingRelease(identity));
-}
-
 
 - (SecIdentityRef)createIdentity {
   // Load the certificate and private key from the app bundle
@@ -290,6 +215,8 @@
     
   NSData *certData = [NSData dataWithContentsOfFile:certPath];
   NSData *PKCS12Data = [NSData dataWithContentsOfFile:keyPath];
+  
+  self.pkcs12data = dispatch_data_create(PKCS12Data.bytes, PKCS12Data.length, dispatch_get_main_queue(), DISPATCH_DATA_DESTRUCTOR_DEFAULT);
     
   if (!certData || !PKCS12Data) {
     NSLog(@"[LocalServer] failed to load certificate or private key");
@@ -336,8 +263,58 @@
     
   NSArray *identities = (__bridge NSArray *)items;
   NSDictionary *identityDict = [identities objectAtIndex:0];
+  NSLog(@"[LocalServer] identityDict: %@", identityDict);
+    
   self.identity = (SecIdentityRef)CFBridgingRetain([identityDict objectForKey:(id)kSecImportItemIdentity]);
   NSLog(@"[LocalServer] identity: %@", self.identity);
+  
+  NSDictionary *dict = @{
+    (NSString *)kSecValueRef: [identityDict objectForKey:(NSString *)kSecImportItemIdentity],
+    (NSString *)kSecAttrLabel: @"ListenerIdentityLabel",
+  };
+  
+  CFDictionaryRef ref = CFBridgingRetain(dict);
+  OSStatus status = SecItemAdd(ref, nil);
+  
+  if (status == errSecSuccess) {
+    NSLog(@"[LocalServer] added item!");
+  } else {
+    NSLog(@"[LocalServer] failed adding item: %d", (int)status);
+  }
+  
+  // get sec from keychain
+  // https://developer.apple.com/documentation/network/creating_an_identity_for_local_network_tls?changes=_6&language=objc
+  NSDictionary* query_ref = @{
+    (NSString *)kSecClass: (NSString *)kSecClassCertificate,
+    (NSString *)kSecAttrLabel: @"ListenerIdentityLabel",
+    (NSString *)kSecReturnRef: @1
+  };
+  
+  SecItemCopyMatching(CFBridgingRetain(query_ref), nil);
+  CFTypeRef item = NULL;
+  CFDictionaryRef query_dict_ref = CFBridgingRetain(query_ref);
+  OSStatus copy_status = SecItemCopyMatching(query_dict_ref, &item);
+  
+  NSLog(@"[LocalServer] copy status: %d", copy_status);
+  
+  // in memory trick for writing
+  // https://stackoverflow.com/questions/45997841/how-to-get-a-secidentityref-from-a-seccertificateref-and-a-seckeyref
+  if (item != NULL) {
+    
+    CFMutableArrayRef cert_arr = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
+    CFArrayAppendValue(cert_arr, item);
+    
+    SecIdentityRef copied_cert_ref = NULL;
+    sec_identity_t identity_with_cert = sec_identity_create_with_certificates(copied_cert_ref, cert_arr);
+    
+    if (copied_cert_ref != NULL) NSLog(@"[TLS] copied cert ref!");
+    if (identity_with_cert != NULL) NSLog(@"[TLS] copied identity ref!");
+
+    NSLog(@"[TLS] found security item: %@", item);
+  } else {
+    NSLog(@"[TLS] could not find security item!");
+  }
+  
   
   return self.identity;
 }
@@ -363,24 +340,28 @@
     // https://forums.developer.apple.com/forums/thread/118035
     sec_protocol_options_set_max_tls_protocol_version(sec_options, tls_protocol_version_TLSv12); //set max TLS version to TLSv1.3 (you will probably be using TLSv1.2)
     if(self.dns != NULL) {
-      sec_protocol_options_set_tls_server_name(sec_options, self.dns); //VERY IMPORTANT, needed for connection to work. Must be the same as the DNS name that you are using for your server. See this for a great guide for how to create certificates that work with TLS and iOS -> https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
+      //sec_protocol_options_set_tls_server_name(sec_options, self.dns); //VERY IMPORTANT, needed for connection to work. Must be the same as the DNS name that you are using for your server. See this for a great guide for how to create certificates that work with TLS and iOS -> https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
     } else {
       NSLog(@"***IMPORTANT*** YOU NEED TO SET THE DNS ***IMPORTANT***");
     }
     
-    SecIdentityRef identity = [self createIdentity];
+    self.identity = [self createIdentity];
+    self.sec_identity = sec_identity_create(self.identity);
     
-    sec_identity_t ident = (__bridge sec_identity_t _Nonnull)(identity);
-    
-    if (ident != NULL) {
+    if (self.sec_identity != NULL) {
       NSLog(@"[TLS] setting local identity!");
-      sec_protocol_options_set_local_identity(sec_options, ident);
+      sec_protocol_options_set_local_identity(sec_options, self.sec_identity);
     } else {
       NSLog(@"[TLS] identity is null!");
     }
+    
+    //  PRE-SHARE CERT WITH CONNECTION / LISTENER
+    //  https://forums.developer.apple.com/forums/thread/711114
+    //
+    dispatch_data_t psk;
+    dispatch_data_t psk_identity;
+    sec_protocol_options_add_pre_shared_key(sec_options, self.pkcs12data, psk_identity);
 
-    
-    
     //  HANDSHAKE VERIFY BLOCK
     //  This block performs the verification step.
     //
@@ -388,55 +369,72 @@
         
       NSLog(@"[Handshake] verify block: %@", complete ? @"complete" : @"ongoing");
       NSLog(@"[Handshake] metadata: %@", metadata);
-        
+      
+      SecPolicyRef x509Policy = SecPolicyCreateBasicX509();
+      SecTrustRef secTrustRef = sec_trust_copy_ref(trust_ref);
+      SecTrustSetPolicies(secTrustRef, x509Policy);
+      
+      CFErrorRef trustError = NULL;
+      OSStatus trustStatus = SecTrustEvaluateWithError(secTrustRef, &trustError);
+      NSLog(@"[Handshake] OS status: %u", (int)trustStatus);
+
+      if (trustError != NULL) {
+        NSLog(@"[Handshake] verification complete!");
+        complete(true);
+        return;
+      }
+      
       SecTrustRef trust = sec_trust_copy_ref(trust_ref);
       SecCertificateRef ref = SecTrustGetCertificateAtIndex(trust, 0); //get certificate from connection at index
 
         
-        CFMutableArrayRef cert_arr = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
-        CFArrayAppendValue(cert_arr, ref);
-          
-          //Maybe not neccessary - but won't hurt, setting the correct cerificate (verfiably) as an anchor certificate.
-        OSStatus set = SecTrustSetAnchorCertificates(trust, cert_arr);
-          
-          //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
-          //***************************************************************************************
-          const char* server_name = sec_protocol_metadata_get_server_name(metadata);
-          tls_protocol_version_t proto_v = sec_protocol_metadata_get_negotiated_tls_protocol_version(metadata);
-          tls_ciphersuite_t suite = sec_protocol_metadata_get_negotiated_tls_ciphersuite(metadata);
-          
-          NSLog(@"[Handshake] server name: %s", server_name);
-          NSLog(@"[Handshake] protocol version: %hu", proto_v);
-          NSLog(@"[Handshake] protocol ciphersuite: %hu", suite);
-          NSLog(@"[Handshake] certifcate count: %ld",(long)SecTrustGetCertificateCount(trust));
-          NSLog(@"[Handshake] error setting certificate as anchor: %@", SecCopyErrorMessageString(set, NULL));
-          //***************************************************************************************
-          
-          OSStatus status = SecTrustEvaluateAsyncWithError(trust, dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^(SecTrustRef  _Nonnull trustRef, bool result, CFErrorRef  _Nullable error) {
-              if(error) {
-                  //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
-                  //***************************************************************************************
-                  NSLog(@"error code with trust evaluation: %li", (long)CFErrorGetCode(error));
-                  NSLog(@"error domain with trust evaluation: %@", CFErrorGetDomain(error));
-                  NSLog(@"error with trust evaluation - not human readable: %@", error);
-                  NSLog(@"error with trust evaluation - human readable: %@", CFErrorCopyDescription(error));
-                  NSLog(@"result in error block for trust evaluation: %i", result);
-                  //***************************************************************************************
-                  
-                  complete(false);
-              }
-              else {
-                  NSLog(@"positive result for trust evaluation: %i", result);
-                  complete(result);
-              }
-          });
-          
-          //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
-          //***************************************************************************************
-          NSLog(@"status of trust evaluation - human readable: %@", SecCopyErrorMessageString(status, NULL));
-          //***************************************************************************************
-          
-      }, dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0)); //I handle it async on the background queue because this has to happen everytime a connection is created, which happens everytime you send data!
+      CFMutableArrayRef cert_arr = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
+      CFArrayAppendValue(cert_arr, ref);
+        
+      //Maybe not neccessary - but won't hurt, setting the correct cerificate (verfiably) as an anchor certificate.
+      OSStatus set = SecTrustSetAnchorCertificates(trust, cert_arr);
+        
+      //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
+      //***************************************************************************************
+      const char* server_name = sec_protocol_metadata_get_server_name(metadata);
+      tls_protocol_version_t proto_v = sec_protocol_metadata_get_negotiated_tls_protocol_version(metadata);
+      tls_ciphersuite_t suite = sec_protocol_metadata_get_negotiated_tls_ciphersuite(metadata);
+      
+      NSLog(@"[Handshake] server name: %s", server_name);
+      NSLog(@"[Handshake] protocol version: %hu", proto_v);
+      NSLog(@"[Handshake] protocol ciphersuite: %hu", suite);
+      NSLog(@"[Handshake] certifcate count: %ld",(long)SecTrustGetCertificateCount(trust));
+      NSLog(@"[Handshake] error setting certificate as anchor: %@", SecCopyErrorMessageString(set, NULL));
+      //***************************************************************************************
+        
+      OSStatus status = SecTrustEvaluateAsyncWithError(trust, dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^(SecTrustRef  _Nonnull trustRef, bool result, CFErrorRef  _Nullable error) {
+          if(error) {
+              //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
+              //***************************************************************************************
+              NSLog(@"error code with trust evaluation: %li", (long)CFErrorGetCode(error));
+              NSLog(@"error domain with trust evaluation: %@", CFErrorGetDomain(error));
+              NSLog(@"error with trust evaluation - not human readable: %@", error);
+              NSLog(@"error with trust evaluation - human readable: %@", CFErrorCopyDescription(error));
+              NSLog(@"result in error block for trust evaluation: %i", result);
+              //***************************************************************************************
+              
+              complete(false);
+          }
+          else {
+              NSLog(@"positive result for trust evaluation: %i", result);
+              complete(result);
+          }
+      });
+      
+      //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
+      //***************************************************************************************
+      NSLog(@"status of trust evaluation - human readable: %@", SecCopyErrorMessageString(status, NULL));
+      //***************************************************************************************
+      
+  }, dispatch_get_main_queue());
+    
+    // dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0)
+    //I handle it async on the background queue because this has to happen everytime a connection is created, which happens everytime you send data!
   };
   
   //Can use the below line to ignore having to configure tls (everything above is rendered mute by NW_PARAMETERS_DISABLE_PROTOCOL)
@@ -445,8 +443,9 @@
       configure_tls,
       NW_PARAMETERS_DEFAULT_CONFIGURATION
   );
-  
+      
   return parameters;
 }
+
 
 @end
