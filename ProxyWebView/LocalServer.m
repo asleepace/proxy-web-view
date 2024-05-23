@@ -11,6 +11,9 @@
 #import <UIKit/UIKit.h>
 
 @interface LocalServer()
+{
+  SecIdentityRef identity;
+}
 
 @property (nonatomic, strong) nw_listener_t listener;
 @property (nonatomic, strong) dispatch_queue_t queue;
@@ -65,20 +68,39 @@
   
   //  nw_parameters_t parameters = nw_parameters_create();
     
-  nw_parameters_configure_protocol_block_t configure_tls = NW_PARAMETERS_DISABLE_PROTOCOL;
-  nw_parameters_t parameters;
+//  nw_parameters_configure_protocol_block_t configure_tls = NW_PARAMETERS_DISABLE_PROTOCOL;
+//  nw_parameters_t parameters;
+//  
+//  if (g_use_udp) {
+//      parameters = nw_parameters_create_secure_udp(
+//          configure_tls,
+//          NW_PARAMETERS_DEFAULT_CONFIGURATION
+//      );
+//  } else {
+//      parameters = nw_parameters_create_secure_tcp(
+//          configure_tls,
+//          NW_PARAMETERS_DEFAULT_CONFIGURATION
+//      );
+//  }
   
-  if (g_use_udp) {
-      parameters = nw_parameters_create_secure_udp(
-          configure_tls,
-          NW_PARAMETERS_DEFAULT_CONFIGURATION
-      );
-  } else {
-      parameters = nw_parameters_create_secure_tcp(
-          configure_tls,
-          NW_PARAMETERS_DEFAULT_CONFIGURATION
-      );
-  }
+  SecIdentityRef identity = [self createIdentity];
+  NSLog(@"[LocalServer] created identity: %@", identity);
+  
+  nw_parameters_t parameters = nw_parameters_create_secure_tcp(^(nw_protocol_options_t options) {
+    sec_protocol_options_t secOptions = nw_tls_copy_sec_protocol_options(options);
+    sec_protocol_options_set_local_identity(secOptions, CFBridgingRelease(identity));
+    NSLog(@"[LocalServer] set local identity!");
+  }, NW_PARAMETERS_DEFAULT_CONFIGURATION);
+  
+  //  START TLS
+ //  nw_protocol_options_t tls = nw_tls_create_options();
+
+       
+  // Set other TLS options as needed
+  // For example, to disable certain versions of TLS:
+  // sec_protocol_options_add_tls_version(secOptions, tls_protocol_version_TLSv12);
+      
+  //  END TLS
   
   nw_endpoint_t endpoint = nw_endpoint_create_host("0.0.0.0", "8888");
   //nw_parameters_set_local_only(parameters, true);
@@ -224,36 +246,60 @@
 
 - (SecIdentityRef)createIdentity {
   // Load the certificate and private key from the app bundle
-  NSString *certPath = [[NSBundle mainBundle] pathForResource:@"server" ofType:@"cer"];
-  NSString *keyPath = [[NSBundle mainBundle] pathForResource:@"server" ofType:@"p12"];
+  NSString *certPath = [[NSBundle mainBundle] pathForResource:@"certificate" ofType:@"der"];
+  NSString *keyPath = [[NSBundle mainBundle] pathForResource:@"client" ofType:@"p12"];
     
   NSData *certData = [NSData dataWithContentsOfFile:certPath];
-  NSData *keyData = [NSData dataWithContentsOfFile:keyPath];
+  NSData *PKCS12Data = [NSData dataWithContentsOfFile:keyPath];
     
-  if (!certData || !keyData) {
-    NSLog(@"Failed to load certificate or private key");
+  if (!certData || !PKCS12Data) {
+    NSLog(@"[LocalServer] failed to load certificate or private key");
     return NULL;
   }
+  
     
-  SecCertificateRef certificate = SecCertificateCreateWithData(NULL, (CFDataRef)certData);
+  SecCertificateRef certificate = SecCertificateCreateWithData(kCFAllocatorMalloc, (CFDataRef)certData);
   if (!certificate) {
-    NSLog(@"Failed to create certificate");
+    NSLog(@"[LocalServer] Failed to create certificate!!!!");
+    return NULL;
+  }
+  
+  NSString *password = @"password";
+  OSStatus securityError = errSecSuccess;
+
+  const void *keys[] =   { kSecImportExportPassphrase };
+  const void *values[] = { (__bridge CFStringRef)password };
+  CFDictionaryRef optionsDictionary = NULL;
+
+  optionsDictionary = CFDictionaryCreate(
+                                         NULL, keys,
+                                         values, (password?1:0),
+                                         NULL, NULL);
+  CFArrayRef items = NULL;
+
+  securityError = SecPKCS12Import((__bridge CFDataRef)PKCS12Data,
+                                  optionsDictionary,
+                                  &items);
+  
+  if (securityError != errSecSuccess) {
+    NSLog(@"[LocalServer] Failed to import private key: %d", securityError);
     return NULL;
   }
     
-  CFArrayRef items = NULL;
-  NSDictionary *options = @{(id)kSecImportExportPassphrase : @"your_password"}; // The password for the .p12 file
-  OSStatus status = SecPKCS12Import((CFDataRef)keyData, (CFDictionaryRef)options, &items);
-    
-  if (status != errSecSuccess) {
-      NSLog(@"Failed to import private key: %d", (int)status);
-      return NULL;
-  }
+//  CFArrayRef items = NULL;
+//  NSDictionary *options = @{(id)kSecImportExportPassphrase : @"password"}; // The password for the .p12 file
+//  OSStatus status = SecPKCS12Import((CFDataRef)keyData, (CFDictionaryRef)options, &items);
+//    
+//  if (status != errSecSuccess) {
+//      NSLog(@"[LocalServer] Failed to import private key: %d", (int)status);
+//      return NULL;
+//  }
     
   NSArray *identities = (__bridge NSArray *)items;
   NSDictionary *identityDict = [identities objectAtIndex:0];
-  SecIdentityRef identity = (SecIdentityRef)CFBridgingRetain([identityDict objectForKey:(id)kSecImportItemIdentity]);
-    
+  identity = (SecIdentityRef)CFBridgingRetain([identityDict objectForKey:(id)kSecImportItemIdentity]);
+  NSLog(@"[LocalServer] identity: %@", identity);
+  
   return identity;
 }
 
