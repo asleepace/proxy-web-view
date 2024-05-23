@@ -22,6 +22,9 @@
   NSLog(@"[ProxyURLProtocol] canInitWithRequest: %@", request.URL.absoluteString);
   // Only handle http and https requests
   NSString *scheme = [[request URL] scheme];
+  
+  return false;
+  
   return ([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"]);
 }
 
@@ -34,27 +37,33 @@
   NSLog(@"[ProxyURLProtocol] started loading...");
   NSMutableURLRequest *newRequest = [[self request] mutableCopy];
   
+  //  About Proxy Settings
+  //  https://stackoverflow.com/questions/36333784/programmatically-configure-proxy-settings-in-ios
+  //
   NSDictionary *proxyDict = @{
-    (NSString *)kCFNetworkProxiesHTTPEnable: [NSNumber numberWithInt:1],
+    @"HTTPSEnable": @1,
+    @"HTTPSProxy": @"0.0.0.0",
+    @"HTTPSPort": @8888,
+    (NSString *)kCFNetworkProxiesHTTPEnable: @1,
     (NSString *)kCFNetworkProxiesHTTPProxy: @"0.0.0.0",
-    (NSString *)kCFNetworkProxiesHTTPPort: [NSNumber numberWithInt:8888],
+    (NSString *)kCFNetworkProxiesHTTPPort: @8888,
+    //  DEPRECATED: add proxy settings to the request
+    (NSString *)kCFStreamPropertyHTTPProxyHost: @"0.0.0.0",
+    (NSString *)kCFStreamPropertyHTTPProxyPort: @8888,
+    (NSString *)kCFStreamPropertyHTTPSProxyHost: @"0.0.0.0",
+    (NSString *)kCFStreamPropertyHTTPSProxyPort: @8888
   };
   
-  //  DEPRECATED: add proxy settings to the request
-  //  NSDictionary *proxyDict = @{
-  //    (NSString *)kCFStreamPropertyHTTPProxyHost: @"0.0.0.0",
-  //    (NSString *)kCFStreamPropertyHTTPProxyPort: @8888,
-  //    (NSString *)kCFStreamPropertyHTTPSProxyHost: @"0.0.0.0",
-  //    (NSString *)kCFStreamPropertyHTTPSProxyPort: @8888
-  //  };
+
   
-  [newRequest setAllHTTPHeaderFields:proxyDict];
+//  [newRequest setAllHTTPHeaderFields:proxyDict];
   
   NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
   config.connectionProxyDictionary = proxyDict;
   
   NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:self delegateQueue:nil];
   self.dataTask = [session dataTaskWithRequest:newRequest completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+    NSLog(@"[ProxyURLProtocol] dataTask with data: %@ error: %@", data, error);
       if (error) {
           [self.client URLProtocol:self didFailWithError:error];
       } else {

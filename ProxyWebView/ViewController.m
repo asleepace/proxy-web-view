@@ -22,8 +22,14 @@
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
-  [self navigateTo:@"http://padlet.com/"];
+  // [self navigateTo:@"http://padlet.com/"];
   [self testLocalServer];
+  
+  NSURL *url = [[NSBundle mainBundle] URLForResource:@"index" withExtension:@"html"];
+  [self.webView loadFileURL:url allowingReadAccessToURL:url];
+  
+  NSURLRequest *request = [NSURLRequest requestWithURL:url];
+  [self.webView loadRequest:request];
 }
 
 - (void)testLocalServer {
@@ -34,7 +40,8 @@
   NSData *data = [hello dataUsingEncoding:NSUTF8StringEncoding];
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
   [request setValue:@"text/*" forHTTPHeaderField:@"Accept"];
-  [request setHTTPBody:data];
+  [request setHTTPMethod:@"GET"];
+//  [request setHTTPBody:data];
   
   NSURLSession *session = [NSURLSession sharedSession];
   NSURLSessionDataTask *task = [session dataTaskWithRequest:request];
@@ -78,6 +85,8 @@
   
   WKPreferences *preferences = [[WKPreferences alloc] init];
   preferences.inactiveSchedulingPolicy = WKInactiveSchedulingPolicyNone;
+  [preferences setValue:@"TRUE" forKey:@"allowFileAccessFromFileURLs"];
+
     
   WKWebpagePreferences *pagePrefs = [[WKWebpagePreferences alloc] init];
   pagePrefs.allowsContentJavaScript = true;
@@ -92,9 +101,10 @@
   configuration.suppressesIncrementalRendering = false;
   configuration.allowsAirPlayForMediaPlayback = true;
   configuration.allowsInlineMediaPlayback = true;
-  
+    
   // setup process pool
   WKProcessPool *pool = [[WKProcessPool alloc] init];
+  
   
   // configure preferences and controllers
   configuration.defaultWebpagePreferences = pagePrefs;
@@ -103,6 +113,10 @@
   configuration.processPool = pool;
 
   self.webView = [[WKWebView alloc] initWithFrame:self.view.bounds configuration:configuration];
+  [self.webView setInspectable:true];
+  self.webView.navigationDelegate = self;
+  self.webView.UIDelegate = self;
+  
   [self.view addSubview:self.webView];
 }
 
