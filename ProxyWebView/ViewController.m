@@ -10,6 +10,7 @@
 //
 
 #import "ViewController.h"
+#import "CertBot.h"
 
 @interface ViewController () <WKUIDelegate, WKNavigationDelegate, WKURLSchemeHandler, WKScriptMessageHandler>
 
@@ -132,6 +133,27 @@
   
   [self.view addSubview:self.webView];
 }
+
+
+#pragma mark - Authentication
+
+
+- (void)webView:(WKWebView *)webView didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential * _Nullable))completionHandler {
+  NSLog(@"[ViewController] did receive challenge: %@", challenge);
+  
+  [[[NSOperationQueue alloc] init] addOperationWithBlock:^{
+    NSURLCredential *credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
+    SecCertificateRef selfSignedCertificate = [[CertBot shared] getCertificate];
+    [challenge.sender useCredential:credential forAuthenticationChallenge:challenge];
+    completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
+  }];
+}
+
+- (void)webView:(WKWebView *)webView authenticationChallenge:(NSURLAuthenticationChallenge *)challenge shouldAllowDeprecatedTLS:(void (^)(BOOL))decisionHandler {
+  NSLog(@"[ViewController] webView authenticationChallenge: %@", challenge.description);
+  decisionHandler(true);
+}
+
 
 
 #pragma mark - Script Handler

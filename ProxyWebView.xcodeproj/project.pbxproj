@@ -25,6 +25,8 @@
 		265791942BFF4B8600ED054B /* my.p12 in Resources */ = {isa = PBXBuildFile; fileRef = 265791912BFF4B8600ED054B /* my.p12 */; };
 		265791962BFF507A00ED054B /* certificate.der in Resources */ = {isa = PBXBuildFile; fileRef = 265791952BFF507A00ED054B /* certificate.der */; };
 		265791982BFF54D700ED054B /* client.p12 in Resources */ = {isa = PBXBuildFile; fileRef = 265791972BFF54D700ED054B /* client.p12 */; };
+		2657919A2BFFBF9700ED054B /* LINK.MD in Resources */ = {isa = PBXBuildFile; fileRef = 265791992BFFBF9700ED054B /* LINK.MD */; };
+		265791A92BFFF0E200ED054B /* CertBot.m in Sources */ = {isa = PBXBuildFile; fileRef = 265791A82BFFF0E200ED054B /* CertBot.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +55,9 @@
 		265791912BFF4B8600ED054B /* my.p12 */ = {isa = PBXFileReference; lastKnownFileType = file; path = my.p12; sourceTree = "<group>"; };
 		265791952BFF507A00ED054B /* certificate.der */ = {isa = PBXFileReference; lastKnownFileType = file; path = certificate.der; sourceTree = "<group>"; };
 		265791972BFF54D700ED054B /* client.p12 */ = {isa = PBXFileReference; lastKnownFileType = file; path = client.p12; sourceTree = "<group>"; };
+		265791992BFFBF9700ED054B /* LINK.MD */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = LINK.MD; sourceTree = "<group>"; };
+		265791A72BFFF0E200ED054B /* CertBot.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CertBot.h; sourceTree = "<group>"; };
+		265791A82BFFF0E200ED054B /* CertBot.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CertBot.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +74,7 @@
 		2657914D2BFEF6C300ED054B = {
 			isa = PBXGroup;
 			children = (
+				265791992BFFBF9700ED054B /* LINK.MD */,
 				265791582BFEF6C300ED054B /* ProxyWebView */,
 				265791572BFEF6C300ED054B /* Products */,
 			);
@@ -100,6 +106,8 @@
 				265791782BFF02C500ED054B /* ProxyURLProtocol.m */,
 				2657917A2BFF04DA00ED054B /* LocalServer.h */,
 				2657917B2BFF04DA00ED054B /* LocalServer.m */,
+				265791A72BFFF0E200ED054B /* CertBot.h */,
+				265791A82BFFF0E200ED054B /* CertBot.m */,
 			);
 			path = ProxyWebView;
 			sourceTree = "<group>";
@@ -214,6 +222,7 @@
 				265791662BFEF6C300ED054B /* Assets.xcassets in Resources */,
 				265791692BFEF6C300ED054B /* Base in Resources */,
 				265791642BFEF6C300ED054B /* Base in Resources */,
+				2657919A2BFFBF9700ED054B /* LINK.MD in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -228,6 +237,7 @@
 				265791612BFEF6C300ED054B /* ViewController.m in Sources */,
 				2657915B2BFEF6C300ED054B /* AppDelegate.m in Sources */,
 				2657916C2BFEF6C300ED054B /* main.m in Sources */,
+				265791A92BFFF0E200ED054B /* CertBot.m in Sources */,
 				2657917C2BFF04DA00ED054B /* LocalServer.m in Sources */,
 				2657915E2BFEF6C300ED054B /* SceneDelegate.m in Sources */,
 			);

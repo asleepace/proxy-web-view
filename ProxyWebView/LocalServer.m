@@ -56,6 +56,89 @@
 }
 
 
+#pragma mark - Self Signing
+
+
+//  GET CERTIFICATE
+//
+//  Returns the pinned certificate in the app bundle.
+//
+- (SecCertificateRef)getCertificate {
+  // Load the certificate and private key from the app bundle
+  NSString *certPath = [[NSBundle mainBundle] pathForResource:@"certificate" ofType:@"der"];
+  NSString *keyPath = [[NSBundle mainBundle] pathForResource:@"client" ofType:@"p12"];
+    
+  NSData *certData = [NSData dataWithContentsOfFile:certPath];
+  NSData *PKCS12Data = [NSData dataWithContentsOfFile:keyPath];
+      
+  if (!certData || !PKCS12Data) {
+    NSLog(@"[LocalServer] failed to load certificate or private key");
+    return NULL;
+  }
+  
+  SecCertificateRef certificate = SecCertificateCreateWithData(kCFAllocatorMalloc, (CFDataRef)certData);
+  if (!certificate) {
+    NSLog(@"[LocalServer] Failed to create certificate!!!!");
+    return NULL;
+  }
+  
+  NSString *password = @"password";
+  OSStatus securityError = errSecSuccess;
+
+  const void *keys[] =   { kSecImportExportPassphrase };
+  const void *values[] = { (__bridge CFStringRef)password };
+  CFDictionaryRef optionsDictionary = NULL;
+
+  optionsDictionary = CFDictionaryCreate(
+                                         NULL, keys,
+                                         values, (password?1:0),
+                                         NULL, NULL);
+  CFArrayRef items = NULL;
+
+  securityError = SecPKCS12Import((__bridge CFDataRef)PKCS12Data,
+                                  optionsDictionary,
+                                  &items);
+  
+  if (securityError != errSecSuccess) {
+    NSLog(@"[LocalServer] Failed to import private key: %d", securityError);
+    return NULL;
+  }
+  
+  return certificate;
+}
+
+
+//  NOTE: this is the preferred method to self-sign a certificate
+//  https://github.com/apple/swift-nio-transport-services/issues/39#issuecomment-487511920
+//
+- (void)selfSign:(sec_protocol_options_t)options {
+  NSLog(@"[TLS] setting up signing block...");
+  SecCertificateRef selfSignedCert = [self getCertificate];
+  sec_protocol_verify_t verifyBlock = ^(
+    sec_protocol_metadata_t metadata, sec_trust_t trust_ref, sec_protocol_verify_complete_t complete) {
+      //  HANDLER VERIFICATION
+      NSLog(@"[TLS] verifying the response!");
+      sec_trust_t actualTrust = CFBridgingRelease(sec_trust_copy_ref(trust_ref));
+      SecTrustRef secTrustRef = (__bridge SecTrustRef)actualTrust;
+      CFMutableArrayRef achorCertificates = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
+      CFArrayAppendValue(achorCertificates, selfSignedCert);
+      SecTrustSetAnchorCertificates(secTrustRef, achorCertificates);
+      SecTrustEvaluateAsyncWithError(secTrustRef, self.queue, ^(SecTrustRef trustRef, bool result, CFErrorRef error) {
+        NSLog(@"[TLS] completed evaluation: %@ (error: %@)", result ? @"yes" : @"no", error);
+        complete(result);
+      });
+  };
+  
+  
+  sec_protocol_options_set_verify_block(options, verifyBlock, self.queue);
+  NSLog(@"[TLS] finished setting self sign block!");
+}
+
+
+
+#pragma mark - Starting Server
+
+
 //  We need to create a certificate (otherwise TLS won't work)
 //  https://developer.apple.com/documentation/network/creating_an_identity_for_local_network_tls?language=objc
 //
@@ -101,15 +184,13 @@
     nw_connection_set_queue(connection, dispatch_get_main_queue());
     
     nw_connection_set_state_changed_handler(connection, ^(nw_connection_state_t state, nw_error_t error) {
-      NSLog(@"[LocalServer] connection handler state: %u error: %@", state, error);
+      NSLog(@"[LocalServer] connection handler state: %u (error: %@)", state, error);
       
       if (state == nw_connection_state_waiting) {
         NSLog(@"[LocalServer] connection waiting...");
         
       } else if (state == nw_connection_state_preparing) {
         NSLog(@"[LocalServer] preparing connection!");
-        
-        nw_protocol_options_t tlsOptions = nw_tls_create_options();
         
       } else if (state == nw_connection_state_invalid) {
         NSLog(@"[LocalServer] connection invalid!]");
@@ -149,7 +230,7 @@
           
           NSLog(@"[LocalServer] response data: %ld", [res length]);
           
-          dispatch_data_t response_data = dispatch_data_create(res.bytes, res.length, dispatch_get_main_queue(), DISPATCH_DATA_DESTRUCTOR_DEFAULT);
+          dispatch_data_t response_data = dispatch_data_create(res.bytes, res.length, self.queue, DISPATCH_DATA_DESTRUCTOR_DEFAULT);
 
           nw_connection_send(connection, response_data, NW_CONNECTION_DEFAULT_MESSAGE_CONTEXT, true, 
                              ^(nw_error_t res_error) {
@@ -365,73 +446,75 @@
     //  HANDSHAKE VERIFY BLOCK
     //  This block performs the verification step.
     //
-    sec_protocol_options_set_verify_block(sec_options, ^(sec_protocol_metadata_t  _Nonnull metadata, sec_trust_t  _Nonnull trust_ref, sec_protocol_verify_complete_t  _Nonnull complete) {
-        
-      NSLog(@"[Handshake] verify block: %@", complete ? @"complete" : @"ongoing");
-      NSLog(@"[Handshake] metadata: %@", metadata);
-      
-      SecPolicyRef x509Policy = SecPolicyCreateBasicX509();
-      SecTrustRef secTrustRef = sec_trust_copy_ref(trust_ref);
-      SecTrustSetPolicies(secTrustRef, x509Policy);
-      
-      CFErrorRef trustError = NULL;
-      OSStatus trustStatus = SecTrustEvaluateWithError(secTrustRef, &trustError);
-      NSLog(@"[Handshake] OS status: %u", (int)trustStatus);
-
-      if (trustError != NULL) {
-        NSLog(@"[Handshake] verification complete!");
-        complete(true);
-        return;
-      }
-      
-      SecTrustRef trust = sec_trust_copy_ref(trust_ref);
-      SecCertificateRef ref = SecTrustGetCertificateAtIndex(trust, 0); //get certificate from connection at index
-
-        
-      CFMutableArrayRef cert_arr = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
-      CFArrayAppendValue(cert_arr, ref);
-        
-      //Maybe not neccessary - but won't hurt, setting the correct cerificate (verfiably) as an anchor certificate.
-      OSStatus set = SecTrustSetAnchorCertificates(trust, cert_arr);
-        
-      //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
-      //***************************************************************************************
-      const char* server_name = sec_protocol_metadata_get_server_name(metadata);
-      tls_protocol_version_t proto_v = sec_protocol_metadata_get_negotiated_tls_protocol_version(metadata);
-      tls_ciphersuite_t suite = sec_protocol_metadata_get_negotiated_tls_ciphersuite(metadata);
-      
-      NSLog(@"[Handshake] server name: %s", server_name);
-      NSLog(@"[Handshake] protocol version: %hu", proto_v);
-      NSLog(@"[Handshake] protocol ciphersuite: %hu", suite);
-      NSLog(@"[Handshake] certifcate count: %ld",(long)SecTrustGetCertificateCount(trust));
-      NSLog(@"[Handshake] error setting certificate as anchor: %@", SecCopyErrorMessageString(set, NULL));
-      //***************************************************************************************
-        
-      OSStatus status = SecTrustEvaluateAsyncWithError(trust, dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^(SecTrustRef  _Nonnull trustRef, bool result, CFErrorRef  _Nullable error) {
-          if(error) {
-              //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
-              //***************************************************************************************
-              NSLog(@"error code with trust evaluation: %li", (long)CFErrorGetCode(error));
-              NSLog(@"error domain with trust evaluation: %@", CFErrorGetDomain(error));
-              NSLog(@"error with trust evaluation - not human readable: %@", error);
-              NSLog(@"error with trust evaluation - human readable: %@", CFErrorCopyDescription(error));
-              NSLog(@"result in error block for trust evaluation: %i", result);
-              //***************************************************************************************
-              
-              complete(false);
-          }
-          else {
-              NSLog(@"positive result for trust evaluation: %i", result);
-              complete(result);
-          }
-      });
-      
-      //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
-      //***************************************************************************************
-      NSLog(@"status of trust evaluation - human readable: %@", SecCopyErrorMessageString(status, NULL));
-      //***************************************************************************************
-      
-  }, dispatch_get_main_queue());
+    [self selfSign:sec_options];
+    
+//    sec_protocol_options_set_verify_block(sec_options, ^(sec_protocol_metadata_t  _Nonnull metadata, sec_trust_t  _Nonnull trust_ref, sec_protocol_verify_complete_t  _Nonnull complete) {
+//        
+//      NSLog(@"[Handshake] verify block: %@", complete ? @"complete" : @"ongoing");
+//      NSLog(@"[Handshake] metadata: %@", metadata);
+//      
+//      SecPolicyRef x509Policy = SecPolicyCreateBasicX509();
+//      SecTrustRef secTrustRef = sec_trust_copy_ref(trust_ref);
+//      SecTrustSetPolicies(secTrustRef, x509Policy);
+//      
+//      CFErrorRef trustError = NULL;
+//      OSStatus trustStatus = SecTrustEvaluateWithError(secTrustRef, &trustError);
+//      NSLog(@"[Handshake] OS status: %u", (int)trustStatus);
+//
+//      if (trustError != NULL) {
+//        NSLog(@"[Handshake] verification complete!");
+//        complete(true);
+//        return;
+//      }
+//      
+//      SecTrustRef trust = sec_trust_copy_ref(trust_ref);
+//      SecCertificateRef ref = SecTrustGetCertificateAtIndex(trust, 0); //get certificate from connection at index
+//
+//        
+//      CFMutableArrayRef cert_arr = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
+//      CFArrayAppendValue(cert_arr, ref);
+//        
+//      //Maybe not neccessary - but won't hurt, setting the correct cerificate (verfiably) as an anchor certificate.
+//      OSStatus set = SecTrustSetAnchorCertificates(trust, cert_arr);
+//        
+//      //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
+//      //***************************************************************************************
+//      const char* server_name = sec_protocol_metadata_get_server_name(metadata);
+//      tls_protocol_version_t proto_v = sec_protocol_metadata_get_negotiated_tls_protocol_version(metadata);
+//      tls_ciphersuite_t suite = sec_protocol_metadata_get_negotiated_tls_ciphersuite(metadata);
+//      
+//      NSLog(@"[Handshake] server name: %s", server_name);
+//      NSLog(@"[Handshake] protocol version: %hu", proto_v);
+//      NSLog(@"[Handshake] protocol ciphersuite: %hu", suite);
+//      NSLog(@"[Handshake] certifcate count: %ld",(long)SecTrustGetCertificateCount(trust));
+//      NSLog(@"[Handshake] error setting certificate as anchor: %@", SecCopyErrorMessageString(set, NULL));
+//      //***************************************************************************************
+//        
+//      OSStatus status = SecTrustEvaluateAsyncWithError(trust, dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^(SecTrustRef  _Nonnull trustRef, bool result, CFErrorRef  _Nullable error) {
+//          if(error) {
+//              //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
+//              //***************************************************************************************
+//              NSLog(@"error code with trust evaluation: %li", (long)CFErrorGetCode(error));
+//              NSLog(@"error domain with trust evaluation: %@", CFErrorGetDomain(error));
+//              NSLog(@"error with trust evaluation - not human readable: %@", error);
+//              NSLog(@"error with trust evaluation - human readable: %@", CFErrorCopyDescription(error));
+//              NSLog(@"result in error block for trust evaluation: %i", result);
+//              //***************************************************************************************
+//              
+//              complete(false);
+//          }
+//          else {
+//              NSLog(@"positive result for trust evaluation: %i", result);
+//              complete(result);
+//          }
+//      });
+//      
+//      //LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
+//      //***************************************************************************************
+//      NSLog(@"status of trust evaluation - human readable: %@", SecCopyErrorMessageString(status, NULL));
+//      //***************************************************************************************
+//      
+//  }, dispatch_get_main_queue());
     
     // dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0)
     //I handle it async on the background queue because this has to happen everytime a connection is created, which happens everytime you send data!
