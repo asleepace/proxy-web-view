@@ -11,15 +11,12 @@
 #import <UIKit/UIKit.h>
 
 @interface LocalServer()
-{
-  SecIdentityRef identity;
-}
 
 @property (nonatomic, strong) nw_listener_t listener;
 @property (nonatomic, strong) dispatch_queue_t queue;
 
 @property (retain, nonatomic) nw_connection_t currentConnection;
-
+@property (atomic) SecIdentityRef identity;
 
 @end
 
@@ -66,34 +63,51 @@
   // Toggle UDP/TCP
   bool g_use_udp = false;
   
-  //  nw_parameters_t parameters = nw_parameters_create();
+//    nw_parameters_t parameters = nw_parameters_create();
     
-//  nw_parameters_configure_protocol_block_t configure_tls = NW_PARAMETERS_DISABLE_PROTOCOL;
-//  nw_parameters_t parameters;
-//  
-//  if (g_use_udp) {
-//      parameters = nw_parameters_create_secure_udp(
-//          configure_tls,
-//          NW_PARAMETERS_DEFAULT_CONFIGURATION
-//      );
-//  } else {
-//      parameters = nw_parameters_create_secure_tcp(
-//          configure_tls,
-//          NW_PARAMETERS_DEFAULT_CONFIGURATION
-//      );
-//  }
+  nw_parameters_configure_protocol_block_t configure_tls = NW_PARAMETERS_DISABLE_PROTOCOL;
+  
+  nw_parameters_t parameters;
+  
+  if (g_use_udp) {
+      parameters = nw_parameters_create_secure_udp(
+          configure_tls,
+          NW_PARAMETERS_DEFAULT_CONFIGURATION
+      );
+  } else {
+      parameters = nw_parameters_create_secure_tcp(
+          configure_tls,
+          NW_PARAMETERS_DEFAULT_CONFIGURATION
+      );
+  }
   
   SecIdentityRef identity = [self createIdentity];
   NSLog(@"[LocalServer] created identity: %@", identity);
   
-  nw_parameters_t parameters = nw_parameters_create_secure_tcp(^(nw_protocol_options_t options) {
-    sec_protocol_options_t secOptions = nw_tls_copy_sec_protocol_options(options);
-    sec_protocol_options_set_local_identity(secOptions, CFBridgingRelease(identity));
-    NSLog(@"[LocalServer] set local identity!");
-  }, NW_PARAMETERS_DEFAULT_CONFIGURATION);
+  nw_protocol_options_t options = nw_tls_create_options();
+  nw_parameters_t tlsParams = nw_parameters_create_quic(^(nw_protocol_options_t  _Nonnull options) {
+    
+    
+  });
+  
+  // https://github.com/Apple-FOSS-Mirror/Security/blob/master/protocol/SecProtocolOptions.h
+  
+//  nw_parameters_t parameters = nw_parameters_create_secure_tcp(^(nw_protocol_options_t options) {
+//    sec_protocol_options_t secOptions = nw_tls_copy_sec_protocol_options(options);
+//    sec_protocol_options_set_local_identity(secOptions, CFBridgingRelease(identity));
+//    NSLog(@"[LocalServer] set local identity!");
+//  }, NW_PARAMETERS_DEFAULT_CONFIGURATION);
   
   //  START TLS
  //  nw_protocol_options_t tls = nw_tls_create_options();
+
+  nw_protocol_options_t tlsOptions = nw_tls_create_options();
+  sec_protocol_options_t secOptions = nw_tls_copy_sec_protocol_options(tlsOptions);
+  
+  // Set the local identity
+  sec_protocol_options_set_local_identity(secOptions, CFBridgingRelease(identity));
+  
+  // Create secure TCP parameters
 
        
   // Set other TLS options as needed
@@ -131,7 +145,6 @@
     NSLog(@"[LocalServer] received new connection!");
     
     nw_connection_set_queue(connection, dispatch_get_main_queue());
-    //nw_retain(connection);
     
     nw_connection_set_state_changed_handler(connection, ^(nw_connection_state_t state, nw_error_t error) {
       NSLog(@"[LocalServer] connection handler state: %u error: %@", state, error);
@@ -297,10 +310,10 @@
     
   NSArray *identities = (__bridge NSArray *)items;
   NSDictionary *identityDict = [identities objectAtIndex:0];
-  identity = (SecIdentityRef)CFBridgingRetain([identityDict objectForKey:(id)kSecImportItemIdentity]);
-  NSLog(@"[LocalServer] identity: %@", identity);
+  self.identity = (SecIdentityRef)CFBridgingRetain([identityDict objectForKey:(id)kSecImportItemIdentity]);
+  NSLog(@"[LocalServer] identity: %@", self.identity);
   
-  return identity;
+  return self.identity;
 }
 
 
