@@ -2,6 +2,8 @@
 
 Runs a local server which intercepts HTTP requests which can be preloaded to the webview.
 
+![Simulator Screenshot - iPhone 15 - 2024-05-23 at 02 07 22](https://github.com/asleepace/proxy-web-view/assets/10716803/9987b4e0-ff9b-4663-9cbd-a245f00fb15e)
+
 ## How it works?
 
 The application starts a local TCP server running at `http://0.0.0.0:8888` via the `LocalServer` class, which will try to match incoming requests with files found in the bundle. This works for loading a website via a local HTML file, or from a remote domain using `HTTP`.
