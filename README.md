@@ -33,6 +33,24 @@ You can use the following two links to text a file which contains assets with `h
 - test http:  http://d.dlabs.me/test/example.html
 - test https:  https://d.dlabs.me/test/example.html
 
+## Generating SSL Certificates
+
+```bash
+openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 3650 -keyout my.key -out my.cer;
+```
+
+Then we need to convert this to a `.der` file:
+
+```bash
+openssl x509 -in certificate.crt -outform der -out certificate.der
+```
+
+To generate the proper SSL certificates for the server, you can use the following commands:
+
+```bash
+openssl pkcs12 -legacy -export -out client.p12 -inkey my.key -in certificate.der
+```
+
 ## Related Links
 
 - [Setting up Netcat](https://developer.apple.com/documentation/network/implementing_netcat_with_network_framework)
