@@ -86,6 +86,10 @@
   nw_parameters_set_reuse_local_address(parameters, true);
   nw_parameters_set_local_endpoint(parameters, endpoint);
   
+  //  FAST OPEN
+  //  https://stackoverflow.com/a/70122201/4326715
+  nw_parameters_set_fast_open_enabled(parameters, true);
+  
   self.listener = nw_listener_create(parameters);
   nw_listener_set_queue(self.listener, self.queue);
   // nw_listener_set_queue(self.listener, dispatch_get_main_queue());
@@ -122,17 +126,17 @@
         nw_connection_receive(connection, 1, UINT32_MAX,
             ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t receive_error) {
           
+          //  SERVER RESPONSE
+          //  The following block handles sending data back to the client.
           NSLog(@"[LocalServer] received content: %@", content);
           NSLog(@"[LocalServer] received context: %@", context);
-          
           NSData *data = (NSData *)content;
           NSString *dataString = [NSString stringWithUTF8String:[data bytes]];
           NSLog(@"[LocalServer] data string: %@", dataString);
           
-          NSURL *url = [[NSBundle mainBundle] URLForResource:@"vault_boy" withExtension:@"jpeg"];
-//          NSData *image_data = [NSData dataWithContentsOfURL:url];
+          //  NSURL *url = [[NSBundle mainBundle] URLForResource:@"vault_boy" withExtension:@"jpeg"];
+          //  NSData *image_data = [NSData dataWithContentsOfURL:url];
           NSData *file_data = [self loadResource:dataString];
-          
           NSString *httpResponse = [NSString stringWithFormat:@"HTTP/1.1 200 OK\r\n"
                                     "Content-Type: */*\r\n"
                                     "Content-Length: %lu\r\n"
@@ -198,5 +202,60 @@
   
   return [NSData data];
 }
+
+
+
+#pragma mark - TLS Security
+
+- (void)tlsCertificate {
+  
+  SecIdentityRef identity = [self createIdentity];
+  if (identity == NULL) {
+      NSLog(@"Failed to create identity");
+      return;
+  }
+  
+  nw_protocol_options_t tlsOptions = nw_tls_create_options();
+  sec_protocol_options_t secOptions = nw_tls_copy_sec_protocol_options(tlsOptions);
+  sec_protocol_options_set_local_identity(secOptions, CFBridgingRelease(identity));
+  
+}
+
+
+- (SecIdentityRef)createIdentity {
+  // Load the certificate and private key from the app bundle
+  NSString *certPath = [[NSBundle mainBundle] pathForResource:@"server" ofType:@"cer"];
+  NSString *keyPath = [[NSBundle mainBundle] pathForResource:@"server" ofType:@"p12"];
+    
+  NSData *certData = [NSData dataWithContentsOfFile:certPath];
+  NSData *keyData = [NSData dataWithContentsOfFile:keyPath];
+    
+  if (!certData || !keyData) {
+    NSLog(@"Failed to load certificate or private key");
+    return NULL;
+  }
+    
+  SecCertificateRef certificate = SecCertificateCreateWithData(NULL, (CFDataRef)certData);
+  if (!certificate) {
+    NSLog(@"Failed to create certificate");
+    return NULL;
+  }
+    
+  CFArrayRef items = NULL;
+  NSDictionary *options = @{(id)kSecImportExportPassphrase : @"your_password"}; // The password for the .p12 file
+  OSStatus status = SecPKCS12Import((CFDataRef)keyData, (CFDictionaryRef)options, &items);
+    
+  if (status != errSecSuccess) {
+      NSLog(@"Failed to import private key: %d", (int)status);
+      return NULL;
+  }
+    
+  NSArray *identities = (__bridge NSArray *)items;
+  NSDictionary *identityDict = [identities objectAtIndex:0];
+  SecIdentityRef identity = (SecIdentityRef)CFBridgingRetain([identityDict objectForKey:(id)kSecImportItemIdentity]);
+    
+  return identity;
+}
+
 
 @end
