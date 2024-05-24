@@ -439,9 +439,9 @@
     //  PRE-SHARE CERT WITH CONNECTION / LISTENER
     //  https://forums.developer.apple.com/forums/thread/711114
     //
-    dispatch_data_t psk;
-    dispatch_data_t psk_identity;
-    sec_protocol_options_add_pre_shared_key(sec_options, self.pkcs12data, psk_identity);
+    //dispatch_data_t psk;
+    //dispatch_data_t psk_identity;
+    //sec_protocol_options_add_pre_shared_key(sec_options, self.pkcs12data, psk_identity);
 
     //  HANDSHAKE VERIFY BLOCK
     //  This block performs the verification step.

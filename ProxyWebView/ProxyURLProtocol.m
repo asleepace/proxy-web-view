@@ -25,7 +25,6 @@
   // Only handle http and https requests
   NSString *scheme = [[request URL] scheme];
   
-  return false;
   return ([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"]);
 }
 

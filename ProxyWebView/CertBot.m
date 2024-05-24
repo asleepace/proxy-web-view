@@ -73,6 +73,69 @@
 
 
 
+#pragma mark - AddToKeychain
+
+
+- (void)addToKeychain:(CFArrayRef)items {
+  NSArray *identities = (__bridge NSArray *)items;
+  NSDictionary *identityDict = [identities objectAtIndex:0];
+  NSLog(@"[CertBot] identityDict: %@", identityDict);
+    
+  SecIdentityRef identity = (SecIdentityRef)CFBridgingRetain([identityDict objectForKey:(id)kSecImportItemIdentity]);
+  NSLog(@"[CertBot] identity: %@", identity);
+  
+  NSDictionary *dict = @{
+    (NSString *)kSecValueRef: [identityDict objectForKey:(NSString *)kSecImportItemIdentity],
+    (NSString *)kSecAttrLabel: @"ListenerIdentityLabel",
+  };
+  
+  CFDictionaryRef ref = CFBridgingRetain(dict);
+  OSStatus status = SecItemAdd(ref, nil);
+  
+  if (status == errSecSuccess) {
+    NSLog(@"[CertBot] added item!");
+  } else {
+    NSLog(@"[CertBot] failed adding item: %d", (int)status);
+  }
+  
+  // get sec from keychain
+  // https://developer.apple.com/documentation/network/creating_an_identity_for_local_network_tls?changes=_6&language=objc
+  NSDictionary* query_ref = @{
+    (NSString *)kSecClass: (NSString *)kSecClassCertificate,
+    (NSString *)kSecAttrLabel: @"ListenerIdentityLabel",
+    (NSString *)kSecReturnRef: @1
+  };
+  
+  SecItemCopyMatching(CFBridgingRetain(query_ref), nil);
+  CFTypeRef item = NULL;
+  CFDictionaryRef query_dict_ref = CFBridgingRetain(query_ref);
+  OSStatus copy_status = SecItemCopyMatching(query_dict_ref, &item);
+  
+  NSLog(@"[CertBot] copy status: %d", copy_status);
+  
+  // in memory trick for writing
+  // https://stackoverflow.com/questions/45997841/how-to-get-a-secidentityref-from-a-seccertificateref-and-a-seckeyref
+  if (item != NULL) {
+    
+    CFMutableArrayRef cert_arr = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
+    CFArrayAppendValue(cert_arr, item);
+    
+    SecIdentityRef copied_cert_ref = NULL;
+    sec_identity_t identity_with_cert = sec_identity_create_with_certificates(copied_cert_ref, cert_arr);
+    
+    if (copied_cert_ref != NULL) NSLog(@"[TLS] copied cert ref!");
+    if (identity_with_cert != NULL) NSLog(@"[TLS] copied identity ref!");
+
+    NSLog(@"[CertBot] found security item: %@", item);
+  } else {
+    NSLog(@"[CertBot] could not find security item!");
+  }
+  
+}
+
+
+
+
 #pragma mark - Certificate
 
 
@@ -109,6 +172,9 @@
     NSLog(@"[CertBot] invalid private key: %d", securityError);
     return NULL;
   }
+  
+  //  OPTIONAL
+  [self addToKeychain:items];
   
   return certificate;
 }

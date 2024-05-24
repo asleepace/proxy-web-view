@@ -28,17 +28,17 @@
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
   // [self navigateTo:@"http://padlet.com/"];
-  // [self testLocalServer];
+  [self testLocalServer];
   
   // fonts work with local HTML
-  // [self loadHTML:@"index"];
+  [self loadHTML:@"index"];
   
   // only works with HTTP
   // [self navigateTo: @"http://dlabs.me/test/example.html"];
   
   // we need to sign for TLS to work
-  [self clearCookiesForURL:@"https://dlabs.me/test/example.html"];
-  [self navigateTo: @"https://dlabs.me/test/example.html"];
+  //[self clearCookiesForURL:@"https://dlabs.me/test/example.html"];
+  //[self navigateTo: @"https://dlabs.me/test/example.html"];
 }
 
 - (void)loadHTML:(NSString *)localFile {
@@ -54,10 +54,10 @@
 //
 - (void)testLocalServer {
   NSLog(@"[ViewController] testing local server!");
-  NSURL *url = [NSURL URLWithString:@"http://0.0.0.0:8888"];
+  NSURL *url = [NSURL URLWithString:@"https://0.0.0.0:8888"];
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
-  [request setValue:@"text/*" forHTTPHeaderField:@"Accept"];
-  [request setHTTPMethod:@"GET"];
+  [request setValue:@"*/*" forHTTPHeaderField:@"Accept"];
+  [request setHTTPMethod:@"HEAD"];
 //  [request setHTTPBody:data];
   NSURLSession *session = [NSURLSession sharedSession];
   NSURLSessionDataTask *task = [session dataTaskWithRequest:request];
@@ -146,22 +146,22 @@
 - (void)webView:(WKWebView *)webView didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential * _Nullable))completionHandler {
   NSLog(@"[WKAuth] did receive challenge: %@", challenge);
   
-  //  NOTE: This will cause all challenges to succeed
-  NSURLCredential *credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
-  [challenge.sender useCredential:credential forAuthenticationChallenge:challenge];
-  completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
-  return;
-  
-
-  if (![challenge.protectionSpace.host containsString:@"0.0.0.0"]) {
-    NSLog(@"[WKAuth] host contains different string: %@", challenge.protectionSpace.host);
-    NSLog(@"[WkAuth] using default challenge with proposed credential: %@", challenge.proposedCredential);
-    NSLog(@"[WkAuth] currently with the server trust: %@", challenge.protectionSpace.serverTrust);
-    //[challenge.sender continueWithoutCredentialForAuthenticationChallenge:challenge];
-    [challenge.sender performDefaultHandlingForAuthenticationChallenge:challenge];
-    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, challenge.proposedCredential);
-    return;
-  }
+//  //  NOTE: This will cause all challenges to succeed
+//  NSURLCredential *credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
+//  [challenge.sender useCredential:credential forAuthenticationChallenge:challenge];
+//  completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
+//  return;
+//  
+//
+//  if (![challenge.protectionSpace.host containsString:@"0.0.0.0"]) {
+//    NSLog(@"[WKAuth] host contains different string: %@", challenge.protectionSpace.host);
+//    NSLog(@"[WkAuth] using default challenge with proposed credential: %@", challenge.proposedCredential);
+//    NSLog(@"[WkAuth] currently with the server trust: %@", challenge.protectionSpace.serverTrust);
+//    //[challenge.sender continueWithoutCredentialForAuthenticationChallenge:challenge];
+//    [challenge.sender performDefaultHandlingForAuthenticationChallenge:challenge];
+//    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, challenge.proposedCredential);
+//    return;
+//  }
   
   [[[NSOperationQueue alloc] init] addOperationWithBlock:^{
     NSURLCredential *credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
