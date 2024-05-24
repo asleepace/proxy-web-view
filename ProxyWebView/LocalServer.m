@@ -181,7 +181,7 @@
   nw_listener_set_new_connection_handler(self.listener, ^(nw_connection_t connection) {
     NSLog(@"[LocalServer] received new connection!");
     
-    nw_connection_set_queue(connection, dispatch_get_main_queue());
+    nw_connection_set_queue(connection, self.queue);
     
     nw_connection_set_state_changed_handler(connection, ^(nw_connection_state_t state, nw_error_t error) {
       NSLog(@"[LocalServer] connection handler state: %u (error: %@)", state, error);
@@ -297,7 +297,7 @@
   NSData *certData = [NSData dataWithContentsOfFile:certPath];
   NSData *PKCS12Data = [NSData dataWithContentsOfFile:keyPath];
   
-  self.pkcs12data = dispatch_data_create(PKCS12Data.bytes, PKCS12Data.length, dispatch_get_main_queue(), DISPATCH_DATA_DESTRUCTOR_DEFAULT);
+  self.pkcs12data = dispatch_data_create(PKCS12Data.bytes, PKCS12Data.length, self.queue, DISPATCH_DATA_DESTRUCTOR_DEFAULT);
     
   if (!certData || !PKCS12Data) {
     NSLog(@"[LocalServer] failed to load certificate or private key");
@@ -439,9 +439,9 @@
     //  PRE-SHARE CERT WITH CONNECTION / LISTENER
     //  https://forums.developer.apple.com/forums/thread/711114
     //
-    dispatch_data_t psk;
-    dispatch_data_t psk_identity;
-    sec_protocol_options_add_pre_shared_key(sec_options, self.pkcs12data, psk_identity);
+    //dispatch_data_t psk;
+    //dispatch_data_t psk_identity;
+    //sec_protocol_options_add_pre_shared_key(sec_options, self.pkcs12data, psk_identity);
 
     //  HANDSHAKE VERIFY BLOCK
     //  This block performs the verification step.
