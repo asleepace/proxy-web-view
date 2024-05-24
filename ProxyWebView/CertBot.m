@@ -31,7 +31,8 @@
 //
 - (id)init {
   if (self = [super init]) {
-    
+    self.host = @"0.0.0.0";
+    self.port = @"8888";
   }
   return self;
 }

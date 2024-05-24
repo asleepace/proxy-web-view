@@ -31,13 +31,14 @@
   // [self testLocalServer];
   
   // fonts work with local HTML
-  [self loadHTML:@"index"];
+  // [self loadHTML:@"index"];
   
   // only works with HTTP
   // [self navigateTo: @"http://dlabs.me/test/example.html"];
   
   // we need to sign for TLS to work
-//  [self navigateTo: @"http://dlabs.me/test/example.html"];
+  [self clearCookiesForURL:@"https://dlabs.me/test/example.html"];
+  [self navigateTo: @"https://dlabs.me/test/example.html"];
 }
 
 - (void)loadHTML:(NSString *)localFile {
@@ -137,13 +138,51 @@
 
 #pragma mark - Authentication
 
+//  NOTE: Seems to skip auth challenge
+//- (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(WKNavigation *)navigation {
+//  NSLog(@"[WKAuth] didStartProvisionalNavigation: %@", navigation);
+//}
 
 - (void)webView:(WKWebView *)webView didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential * _Nullable))completionHandler {
-  NSLog(@"[ViewController] did receive challenge: %@", challenge);
+  NSLog(@"[WKAuth] did receive challenge: %@", challenge);
+  
+  //  NOTE: This will cause all challenges to succeed
+  NSURLCredential *credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
+  [challenge.sender useCredential:credential forAuthenticationChallenge:challenge];
+  completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
+  return;
+  
+
+  if (![challenge.protectionSpace.host containsString:@"0.0.0.0"]) {
+    NSLog(@"[WKAuth] host contains different string: %@", challenge.protectionSpace.host);
+    NSLog(@"[WkAuth] using default challenge with proposed credential: %@", challenge.proposedCredential);
+    NSLog(@"[WkAuth] currently with the server trust: %@", challenge.protectionSpace.serverTrust);
+    //[challenge.sender continueWithoutCredentialForAuthenticationChallenge:challenge];
+    [challenge.sender performDefaultHandlingForAuthenticationChallenge:challenge];
+    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, challenge.proposedCredential);
+    return;
+  }
   
   [[[NSOperationQueue alloc] init] addOperationWithBlock:^{
     NSURLCredential *credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
-    SecCertificateRef selfSignedCertificate = [[CertBot shared] getCertificate];
+    NSLog(@"[WKAuth] loaded credentials: %@", credential);
+    NSLog(@"[WKAuth] protectionSpace: %@", challenge.protectionSpace);
+    NSLog(@"[WKAuth] serverTrust: %@", challenge.protectionSpace.serverTrust);
+    
+    if (!credential) {
+      SecCertificateRef selfSignedCert = [[CertBot shared] getCertificate];
+      NSLog(@"[WKAuth] credential not found, creating!");
+
+      SecIdentityRef identityRef = NULL;
+      OSStatus status = SecIdentityCopyCertificate(identityRef, &selfSignedCert);
+      credential = [[NSURLCredential alloc] initWithIdentity:identityRef 
+                                                certificates:@[]
+                                                 persistence:NSURLCredentialPersistenceForSession];
+    }
+    
+    SecCertificateRef selfSignedCert = [[CertBot shared] getCertificate];
+    [credential.certificates arrayByAddingObject:CFBridgingRelease(selfSignedCert)];
+        
     [challenge.sender useCredential:credential forAuthenticationChallenge:challenge];
     completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
   }];
@@ -173,6 +212,19 @@
 
 - (void)webView:(nonnull WKWebView *)webView stopURLSchemeTask:(nonnull id<WKURLSchemeTask>)urlSchemeTask { 
   NSLog(@"[ViewController] stopURLSchemeTask: %@", urlSchemeTask.description);
+}
+
+
+#pragma mark - Clear Cookies
+
+- (void)clearCookiesForURL:(NSString *)urlString {
+  NSURL *URL = [NSURL URLWithString:urlString];
+  NSHTTPCookieStorage *cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+  NSArray *cookies = [cookieStorage cookiesForURL:URL];
+  for (NSHTTPCookie *cookie in cookies) {
+    NSLog(@"[AuthWebView] deleting cookie for domain: %@", [cookie domain]);
+    [cookieStorage deleteCookie:cookie];
+  }
 }
 
 @end
