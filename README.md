@@ -4,7 +4,7 @@ Runs a local server which intercepts HTTP requests which can be preloaded to the
 
 ### UPDATE: Now supports TLS*
 
-Running the local server with a `https://0.0.0.0:8888` connnection works*, but resulst may vary depending on how the certificates actually work.
+Running the local server with a `https://0.0.0.0:8888` connnection works*, but results may vary depending on how the certificates actually work.
 
 
 |Local HTML|Remote HTTP|
