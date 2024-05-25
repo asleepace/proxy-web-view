@@ -27,6 +27,8 @@
 		265791982BFF54D700ED054B /* client.p12 in Resources */ = {isa = PBXBuildFile; fileRef = 265791972BFF54D700ED054B /* client.p12 */; };
 		2657919A2BFFBF9700ED054B /* LINK.MD in Resources */ = {isa = PBXBuildFile; fileRef = 265791992BFFBF9700ED054B /* LINK.MD */; };
 		265791A92BFFF0E200ED054B /* CertBot.m in Sources */ = {isa = PBXBuildFile; fileRef = 265791A82BFFF0E200ED054B /* CertBot.m */; };
+		26C327A62C01C326006DB6F9 /* Config.m in Sources */ = {isa = PBXBuildFile; fileRef = 26C327A52C01C326006DB6F9 /* Config.m */; };
+		26C327AB2C01D60A006DB6F9 /* HTML.m in Sources */ = {isa = PBXBuildFile; fileRef = 26C327AA2C01D60A006DB6F9 /* HTML.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +60,10 @@
 		265791992BFFBF9700ED054B /* LINK.MD */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = LINK.MD; sourceTree = "<group>"; };
 		265791A72BFFF0E200ED054B /* CertBot.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CertBot.h; sourceTree = "<group>"; };
 		265791A82BFFF0E200ED054B /* CertBot.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CertBot.m; sourceTree = "<group>"; };
+		26C327A42C01C326006DB6F9 /* Config.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Config.h; sourceTree = "<group>"; };
+		26C327A52C01C326006DB6F9 /* Config.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Config.m; sourceTree = "<group>"; };
+		26C327A92C01D60A006DB6F9 /* HTML.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HTML.h; sourceTree = "<group>"; };
+		26C327AA2C01D60A006DB6F9 /* HTML.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HTML.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,10 +97,12 @@
 		265791582BFEF6C300ED054B /* ProxyWebView */ = {
 			isa = PBXGroup;
 			children = (
+				26C327A82C01D5FA006DB6F9 /* HTML */,
 				265791882BFF4A3F00ED054B /* Certificates */,
 				2657917F2BFF252200ED054B /* Assets */,
 				265791762BFF026E00ED054B /* App */,
 				265791752BFF025F00ED054B /* Scene */,
+				26C327A72C01C4B3006DB6F9 /* ProxyURL */,
 				2657915F2BFEF6C300ED054B /* ViewController.h */,
 				265791602BFEF6C300ED054B /* ViewController.m */,
 				265791622BFEF6C300ED054B /* Main.storyboard */,
@@ -102,8 +110,8 @@
 				265791672BFEF6C300ED054B /* LaunchScreen.storyboard */,
 				2657916A2BFEF6C300ED054B /* Info.plist */,
 				2657916B2BFEF6C300ED054B /* main.m */,
-				265791772BFF02C500ED054B /* ProxyURLProtocol.h */,
-				265791782BFF02C500ED054B /* ProxyURLProtocol.m */,
+				26C327A42C01C326006DB6F9 /* Config.h */,
+				26C327A52C01C326006DB6F9 /* Config.m */,
 				2657917A2BFF04DA00ED054B /* LocalServer.h */,
 				2657917B2BFF04DA00ED054B /* LocalServer.m */,
 				265791A72BFFF0E200ED054B /* CertBot.h */,
@@ -151,6 +159,24 @@
 				265791912BFF4B8600ED054B /* my.p12 */,
 			);
 			path = Certificates;
+			sourceTree = "<group>";
+		};
+		26C327A72C01C4B3006DB6F9 /* ProxyURL */ = {
+			isa = PBXGroup;
+			children = (
+				265791772BFF02C500ED054B /* ProxyURLProtocol.h */,
+				265791782BFF02C500ED054B /* ProxyURLProtocol.m */,
+			);
+			path = ProxyURL;
+			sourceTree = "<group>";
+		};
+		26C327A82C01D5FA006DB6F9 /* HTML */ = {
+			isa = PBXGroup;
+			children = (
+				26C327A92C01D60A006DB6F9 /* HTML.h */,
+				26C327AA2C01D60A006DB6F9 /* HTML.m */,
+			);
+			path = HTML;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -234,6 +260,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				265791792BFF02C500ED054B /* ProxyURLProtocol.m in Sources */,
+				26C327AB2C01D60A006DB6F9 /* HTML.m in Sources */,
+				26C327A62C01C326006DB6F9 /* Config.m in Sources */,
 				265791612BFEF6C300ED054B /* ViewController.m in Sources */,
 				2657915B2BFEF6C300ED054B /* AppDelegate.m in Sources */,
 				2657916C2BFEF6C300ED054B /* main.m in Sources */,

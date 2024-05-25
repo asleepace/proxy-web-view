@@ -11,6 +11,8 @@
 
 #import "ViewController.h"
 #import "CertBot.h"
+#import "Config.h"
+#import "HTML.h"
 
 @interface ViewController () <WKUIDelegate, WKNavigationDelegate, WKURLSchemeHandler, WKScriptMessageHandler>
 
@@ -27,38 +29,64 @@
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
-  // [self navigateTo:@"http://padlet.com/"];
-  [self testLocalServer];
   
-  // fonts work with local HTML
-  [self loadHTML:@"index"];
+  //  NOTE: UDP hole punching may fix an issue with physical devices
+  [self holePunch: Config.HTTPS_ENDPOINT];
   
-  // only works with HTTP
-  // [self navigateTo: @"http://dlabs.me/test/example.html"];
+  //  NOTE: May fix a bug with stale certificates
+  //  [self clearCookiesForURL:@"https://dlabs.me/test/example.html"];
   
-  // we need to sign for TLS to work
-  //[self clearCookiesForURL:@"https://dlabs.me/test/example.html"];
-  //[self navigateTo: @"https://dlabs.me/test/example.html"];
+  //  NOTE: Load content for mode
+  [[NSTimer timerWithTimeInterval:5.0 repeats:false block:^(NSTimer * timer) {
+    NSLog(@"[ViewController] begin with mode!");
+    [self beginWithMode];
+  }] fire];
 }
 
+//  NOTE: This is to quickly test the three different modes.
+//  Ideally we want remote secure to work, the others are
+//  useful for quickly debugging other items.
+//
+- (void)beginWithMode {
+  switch (Config.MODE) {
+    case kSERVER_MODE_LOCAL: {
+      NSLog(@"[ViewController] SERVER MODE LOCAL");
+      NSString *localHtmlFile = [HTML generate];
+      [self loadHTML:localHtmlFile];
+      return;
+    }
+    case kSERVER_MODE_REMOTE_INSECURE: {
+      NSLog(@"[ViewController] SERVER MODE REMOTE INSECURE");
+      [self navigateTo: @"http://dlabs.me/test/example.html"];
+      return;
+    }
+    case kSERVER_MODE_REMOTE_SECURE: {
+      NSLog(@"[ViewController] SERVER MODE REMOTE SECURE");
+      [self navigateTo: @"https://dlabs.me/test/example.html"];
+    }
+  }
+}
+
+
+
 - (void)loadHTML:(NSString *)localFile {
-  NSLog(@"[ProxyWebView] loading HTML from local file...");
-  NSURL *url = [[NSBundle mainBundle] URLForResource:localFile withExtension:@"html"];
+  NSLog(@"[ProxyWebView] loading HTML from local file: %@", localFile);
+  NSURL *url = [NSURL fileURLWithPath:localFile];
+  //NSURL *url = [[NSBundle mainBundle] URLForResource:localFile withExtension:@"html"];
   [self.webView loadFileURL:url allowingReadAccessToURL:url];
   NSURLRequest *request = [NSURLRequest requestWithURL:url];
   [self.webView loadRequest:request];
 }
 
-//  Send a test message to the local server
-//  although this will fail.
+//  NOTE: This method may help UDP hole punch to open a connection window
+//  to the remote server. Expect this to fail for TLS.
 //
-- (void)testLocalServer {
-  NSLog(@"[ViewController] testing local server!");
-  NSURL *url = [NSURL URLWithString:@"https://0.0.0.0:8888"];
+- (void)holePunch:(const char *)endpoint {
+  NSLog(@"[ViewController] hole punching: %s", endpoint);
+  NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"%s", endpoint]];
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
   [request setValue:@"*/*" forHTTPHeaderField:@"Accept"];
   [request setHTTPMethod:@"HEAD"];
-//  [request setHTTPBody:data];
   NSURLSession *session = [NSURLSession sharedSession];
   NSURLSessionDataTask *task = [session dataTaskWithRequest:request];
   [task resume];
@@ -175,7 +203,10 @@
 
       SecIdentityRef identityRef = NULL;
       OSStatus status = SecIdentityCopyCertificate(identityRef, &selfSignedCert);
-      credential = [[NSURLCredential alloc] initWithIdentity:identityRef 
+      
+      NSLog(@"[WKAuth] security identity copy certificate state: %u", status);
+      
+      credential = [[NSURLCredential alloc] initWithIdentity:identityRef
                                                 certificates:@[]
                                                  persistence:NSURLCredentialPersistenceForSession];
     }

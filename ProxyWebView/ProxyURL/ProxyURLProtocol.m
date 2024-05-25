@@ -10,6 +10,7 @@
 #import "ProxyURLProtocol.h"
 #import <Network/Network.h>
 #import <CFNetwork/CFProxySupport.h>
+#import "Config.h"
 
 
 @interface ProxyURLProtocol() <NSURLSessionDelegate>
@@ -21,10 +22,11 @@
 @implementation ProxyURLProtocol
 
 + (BOOL)canInitWithRequest:(NSURLRequest *)request {
+  if (Config.ENABLE_URL_PROXY == false) return false;
+  
   NSLog(@"[ProxyURLProtocol] canInitWithRequest: %@", request.URL.absoluteString);
   // Only handle http and https requests
   NSString *scheme = [[request URL] scheme];
-  
   return ([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"]);
 }
 

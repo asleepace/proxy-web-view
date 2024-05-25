@@ -16,6 +16,9 @@
 
 @synthesize host, port;
 
+static NSString *SERVER_HOST = @"local-server";
+static NSString *SERVER_PORT = @"8888";
+
 //  SHARED CLASS INSTANCE
 //
 + (id)shared {
@@ -132,7 +135,6 @@
   }
   
 }
-
 
 
 

@@ -10,6 +10,8 @@
 #import <MobileCoreServices/MobileCoreServices.h>
 #import <Security/Security.h>
 #import <UIKit/UIKit.h>
+#import "CertBot.h"
+#import "Config.h"
 
 @interface LocalServer()
 
@@ -35,6 +37,7 @@
 //  will initialize and create.
 //
 + (LocalServer *)createLocalHTTPServer {
+  [Config info];
   return [[LocalServer alloc] init];
 }
 
@@ -43,14 +46,16 @@
 //
 - (id)init {
   if (self = [super init]) {
-    
+        
     self.queue = dispatch_queue_create("local.server.queue", nil);
     self.tlsEncryption = tls_ciphersuite_ECDHE_RSA_WITH_AES_128_GCM_SHA256; //Default encryption
     //self.tlsEncryption = tls_ciphersuite_RSA_WITH_AES_128_GCM_SHA256;
     //self.tlsEncryption = tls_ciphersuite_RSA_WITH_AES_128_GCM_SHA256;
-    self.dns = "0.0.0.0";
+    self.dns = Config.HOST;
 
-    [self startServer];
+    [[[NSOperationQueue alloc] init] addOperationWithBlock:^{
+      [self startServer];
+    }];
   }
   return self;
 }
@@ -66,9 +71,9 @@
 - (SecCertificateRef)getCertificate {
   // Load the certificate and private key from the app bundle
   NSString *certPath = [[NSBundle mainBundle] pathForResource:@"certificate" ofType:@"der"];
-  NSString *keyPath = [[NSBundle mainBundle] pathForResource:@"client" ofType:@"p12"];
+  NSString *keyPath =  [[NSBundle mainBundle] pathForResource:@"client" ofType:@"p12"];
     
-  NSData *certData = [NSData dataWithContentsOfFile:certPath];
+  NSData *certData =   [NSData dataWithContentsOfFile:certPath];
   NSData *PKCS12Data = [NSData dataWithContentsOfFile:keyPath];
       
   if (!certData || !PKCS12Data) {
@@ -151,26 +156,30 @@
   nw_parameters_t parameters = [self tls_params];
   
   //  SETUP ENDPOINT
-  nw_endpoint_t endpoint = nw_endpoint_create_host("0.0.0.0", "8888");
-  //nw_parameters_set_local_only(parameters, true);
-  //nw_parameters_set_include_peer_to_peer(parameters, true);
-  nw_parameters_set_reuse_local_address(parameters, true);
+  nw_endpoint_t endpoint = nw_endpoint_create_host(Config.HOST, Config.PORT);
+  nw_parameters_set_include_peer_to_peer(parameters, Config.ENABLE_PEER_2_PEER);
+  nw_parameters_set_reuse_local_address(parameters, Config.ENABLE_REUSE_ADDRESS);
+  nw_parameters_set_local_only(parameters, Config.ENABLE_LOCAL_ONLY);
   nw_parameters_set_local_endpoint(parameters, endpoint);
   
   //  FAST OPEN
   //  https://stackoverflow.com/a/70122201/4326715
-  //nw_parameters_set_fast_open_enabled(parameters, true);
+  nw_parameters_set_fast_open_enabled(parameters, Config.ENABLE_FAST_OPEN);
   
   self.listener = nw_listener_create(parameters);
   nw_listener_set_queue(self.listener, self.queue);
   // nw_listener_set_queue(self.listener, dispatch_get_main_queue());
 
   // nw_parameters_set_required_interface_type(parameters, nw_interface_type)
+  
+  __block BOOL isReady = false;
 
   // Set the state change handler
   nw_listener_set_state_changed_handler(self.listener, ^(nw_listener_state_t state, nw_error_t error) {
     if (state == nw_listener_state_ready) {
       NSLog(@"[LocalServer] server is ready and listening on port 8888");
+      isReady = true;
+      
     } else if (state == nw_listener_state_failed) {
       NSLog(@"[LocalServer] server failed with error: %@", error);
     } else {
@@ -179,8 +188,7 @@
   });
   
   nw_listener_set_new_connection_handler(self.listener, ^(nw_connection_t connection) {
-    NSLog(@"[LocalServer] received new connection!");
-    
+    NSLog(@"[LocalServer] received new connection! (isServerReady: %s)", isReady ? "YES" : "NO");
     nw_connection_set_queue(connection, self.queue);
     
     nw_connection_set_state_changed_handler(connection, ^(nw_connection_state_t state, nw_error_t error) {
@@ -203,7 +211,7 @@
         // NOTE: we need to clear this connection
         //nw_release(connection);
       } else if (state == nw_connection_state_ready || state == nw_connection_state_preparing) {
-        NSLog(@"[LocalServer] tell the user that you are connected");
+        NSLog(@"[LocalServer] connected!");
         nw_connection_receive(connection, 1, UINT32_MAX,
             ^(dispatch_data_t content, nw_content_context_t context, bool is_complete, nw_error_t receive_error) {
           
@@ -215,8 +223,8 @@
           NSString *dataString = [NSString stringWithUTF8String:[data bytes]];
           NSLog(@"[LocalServer] data string: %@", dataString);
           
-          //  NSURL *url = [[NSBundle mainBundle] URLForResource:@"vault_boy" withExtension:@"jpeg"];
-          //  NSData *image_data = [NSData dataWithContentsOfURL:url];
+          //  HTTP 1.1 DATA
+          //
           NSData *file_data = [self loadResource:dataString];
           NSString *httpResponse = [NSString stringWithFormat:@"HTTP/1.1 200 OK\r\n"
                                     "Content-Type: */*\r\n"
