@@ -11,8 +11,8 @@
 
 + (kSERVER_MODE)MODE {
   //return kSERVER_MODE_REMOTE_INSECURE;
-  //return kSERVER_MODE_REMOTE_SECURE;
-  return kSERVER_MODE_LOCAL;
+  return kSERVER_MODE_REMOTE_SECURE;
+  //return kSERVER_MODE_LOCAL;
 }
 
 + (const char *)HTTPS_ENDPOINT {
@@ -24,7 +24,9 @@
 }
 
 + (const char *)HOST { return "0.0.0.0"; }
-+ (const char *)PORT { return "8888"; }
+// + (const char *)HOST { return "127.0.0.1";  }
+// + (const char *)HOST { return "localhost"; }
++ (const char *)PORT { return "8888";       }
 
 //  NOTE: These seem to work for both true or false values,
 //  when using local html.
@@ -36,6 +38,11 @@
 //  Please keep this as false.
 //
 + (BOOL)ENABLE_LOCAL_ONLY     { return false; }
+
+//  NOTE: This causes the local index.html file to even fail.
+//  Please keep this as false.
+//
++ (BOOL)ENABLE_UDP_HOLE_PUNCH { return false; }
 
 //  URL PROTOCOL
 //

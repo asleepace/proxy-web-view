@@ -8,8 +8,19 @@
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>NSExceptionMinimumTLSVersion</key>
+			<string>TLSv1.2</string>
+			<key>NSExceptionRequiresForwardSecrecy</key>
+			<false/>
+		</dict>
 	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

@@ -121,6 +121,7 @@
   SecCertificateRef selfSignedCert = [self getCertificate];
   sec_protocol_verify_t verifyBlock = ^(
     sec_protocol_metadata_t metadata, sec_trust_t trust_ref, sec_protocol_verify_complete_t complete) {
+
       //  HANDLER VERIFICATION
       NSLog(@"[TLS] verifying the response!");
       sec_trust_t actualTrust = CFBridgingRelease(sec_trust_copy_ref(trust_ref));
@@ -128,6 +129,24 @@
       CFMutableArrayRef achorCertificates = CFArrayCreateMutable(NULL, 1, &kCFTypeArrayCallBacks);
       CFArrayAppendValue(achorCertificates, selfSignedCert);
       SecTrustSetAnchorCertificates(secTrustRef, achorCertificates);
+      
+      //  Maybe not neccessary - but won't hurt, setting the correct cerificate (verfiably) as an anchor certificate.
+      OSStatus set = SecTrustSetAnchorCertificates(secTrustRef, achorCertificates);
+      
+      //  LEAVE FOR DEBUGGING YOUR CONNECTION! VERIFY TLS RELATED VERSIONS. TAKE OUT FOR PRODUCTION.
+      //  ***************************************************************************************
+      const char* server_name = sec_protocol_metadata_get_server_name(metadata);
+      tls_protocol_version_t proto_v = sec_protocol_metadata_get_negotiated_tls_protocol_version(metadata);
+      tls_ciphersuite_t suite = sec_protocol_metadata_get_negotiated_tls_ciphersuite(metadata);
+
+      NSLog(@"[Handshake] server name: %s", server_name);
+      NSLog(@"[Handshake] protocol version: %hu", proto_v);
+      NSLog(@"[Handshake] protocol ciphersuite: %hu", suite);
+      NSLog(@"[Handshake] certifcate count: %ld",(long)SecTrustGetCertificateCount((__bridge SecTrustRef)CFBridgingRelease(sec_trust_copy_ref(trust_ref))));
+      NSLog(@"[Handshake] error setting certificate as anchor: %@", SecCopyErrorMessageString(set, NULL));
+      //  ***************************************************************************************
+      
+      
       SecTrustEvaluateAsyncWithError(secTrustRef, self.queue, ^(SecTrustRef trustRef, bool result, CFErrorRef error) {
         NSLog(@"[TLS] completed evaluation: %@ (error: %@)", result ? @"yes" : @"no", error);
         complete(result);
@@ -177,7 +196,7 @@
   // Set the state change handler
   nw_listener_set_state_changed_handler(self.listener, ^(nw_listener_state_t state, nw_error_t error) {
     if (state == nw_listener_state_ready) {
-      NSLog(@"[LocalServer] server is ready and listening on port 8888");
+      NSLog(@"[LocalServer] server is ready and listening on port: %s", Config.PORT);
       isReady = true;
       
     } else if (state == nw_listener_state_failed) {
@@ -192,7 +211,7 @@
     nw_connection_set_queue(connection, self.queue);
     
     nw_connection_set_state_changed_handler(connection, ^(nw_connection_state_t state, nw_error_t error) {
-      NSLog(@"[LocalServer] connection handler state: %u (error: %@)", state, error);
+      NSLog(@"[LocalServer] connection handler state: %u error: %@", state, error);
       
       if (state == nw_connection_state_waiting) {
         NSLog(@"[LocalServer] connection waiting...");

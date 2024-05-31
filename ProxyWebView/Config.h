@@ -32,6 +32,8 @@ typedef enum : NSUInteger {
 @property (class, readonly) BOOL ENABLE_LOCAL_ONLY;
 @property (class, readonly) BOOL ENABLE_REUSE_ADDRESS;
 @property (class, readonly) BOOL ENABLE_FAST_OPEN;
+@property (class, readonly) BOOL ENABLE_UDP_HOLE_PUNCH;
+
 
 @end
 

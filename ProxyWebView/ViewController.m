@@ -9,7 +9,9 @@
 //
 //
 
+#import <WebKit/WKURLSchemeHandler.h>
 #import "ViewController.h"
+#import "FileProxy.h"
 #import "CertBot.h"
 #import "Config.h"
 #import "HTML.h"
@@ -30,8 +32,11 @@
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
   
+  //  NOTE: Issue with provisional navigation
+  //  https://stackoverflow.com/questions/71678158/didfailprovisionalloadforframe-for-certain-url-but-works-fine-in-safari
+  
   //  NOTE: UDP hole punching may fix an issue with physical devices
-  [self holePunch: Config.HTTPS_ENDPOINT];
+  if (Config.ENABLE_UDP_HOLE_PUNCH) [self holePunch:Config.HTTPS_ENDPOINT];
   
   //  NOTE: May fix a bug with stale certificates
   //  [self clearCookiesForURL:@"https://dlabs.me/test/example.html"];
@@ -62,7 +67,8 @@
     }
     case kSERVER_MODE_REMOTE_SECURE: {
       NSLog(@"[ViewController] SERVER MODE REMOTE SECURE");
-      [self navigateTo: @"https://dlabs.me/test/example.html"];
+//      [self navigateTo: @"https://dlabs.me/test/example.html"];
+      [self navigateTo:@"https://padlet.com/asleepace/my-fierce-wall-ny26t0vshcli"];
     }
   }
 }
@@ -130,13 +136,15 @@
   WKPreferences *preferences = [[WKPreferences alloc] init];
   preferences.inactiveSchedulingPolicy = WKInactiveSchedulingPolicyNone;
   [preferences setValue:@"TRUE" forKey:@"allowFileAccessFromFileURLs"];
-
+  [preferences setInactiveSchedulingPolicy:WKInactiveSchedulingPolicyThrottle];
     
   WKWebpagePreferences *pagePrefs = [[WKWebpagePreferences alloc] init];
   pagePrefs.allowsContentJavaScript = true;
     
   WKUserContentController *controller = [[WKUserContentController alloc] init];
   
+  // setup wkscheme handler
+  [configuration setURLSchemeHandler:self forURLScheme:@"app"];
   // [configuration setURLSchemeHandler:self forURLScheme:@"https"];
     
   // setup configuration
@@ -173,6 +181,7 @@
 
 - (void)webView:(WKWebView *)webView didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential * _Nullable))completionHandler {
   NSLog(@"[WKAuth] did receive challenge: %@", challenge);
+  NSLog(@"[WKAuth] url: %@", challenge.protectionSpace.);
   
 //  //  NOTE: This will cause all challenges to succeed
 //  NSURLCredential *credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
@@ -220,8 +229,19 @@
 }
 
 - (void)webView:(WKWebView *)webView authenticationChallenge:(NSURLAuthenticationChallenge *)challenge shouldAllowDeprecatedTLS:(void (^)(BOOL))decisionHandler {
-  NSLog(@"[ViewController] webView authenticationChallenge: %@", challenge.description);
+  NSLog(@"[ViewController] webView authenticationChallenge: %@", challenge.protectionSpace);
   decisionHandler(true);
+}
+
+
+#pragma mark - Provisional navigation
+
+//  NOTE: https://stackoverflow.com/questions/71678158/didfailprovisionalloadforframe-for-certain-url-but-works-fine-in-safari
+//  See .plist exception domains
+//
+- (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+  NSLog(@"[ViewController] didFailProvisionalNavigation %@", error);
+  [webView reload];
 }
 
 
@@ -238,15 +258,23 @@
 
 
 - (void)webView:(WKWebView *)webView startURLSchemeTask:(id<WKURLSchemeTask>)urlSchemeTask {
-  NSLog(@"[ViewController] startURLSchemeTask: %@", urlSchemeTask.description);
+  NSLog(@"[ViewController] startURLSchemeTask: %@", urlSchemeTask.request.URL);
+  NSURL *url = [FileProxy serveLocalAsset:urlSchemeTask.request.URL.absoluteString];
+  NSData *data = [NSData dataWithContentsOfURL:url];
+  NSURLResponse *response = [[NSURLResponse alloc] initWithURL:url MIMEType:@"*/*" expectedContentLength:-1 textEncodingName:nil];
+  [urlSchemeTask didReceiveResponse:response];
+  [urlSchemeTask didReceiveData:data];
+  [urlSchemeTask didFinish];
 }
 
 - (void)webView:(nonnull WKWebView *)webView stopURLSchemeTask:(nonnull id<WKURLSchemeTask>)urlSchemeTask { 
-  NSLog(@"[ViewController] stopURLSchemeTask: %@", urlSchemeTask.description);
+  NSLog(@"[ViewController] stopURLSchemeTask: %@", urlSchemeTask.request.URL);
+  // cancel items here...
 }
 
 
 #pragma mark - Clear Cookies
+
 
 - (void)clearCookiesForURL:(NSString *)urlString {
   NSURL *URL = [NSURL URLWithString:urlString];

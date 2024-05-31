@@ -74,7 +74,7 @@
                          "  </body>\n"
                          "</html>"];
   
-  NSString *endpoint = [NSString stringWithCString:Config.HTTPS_ENDPOINT encoding:NSUTF8StringEncoding];
+  NSString *endpoint = [NSString stringWithCString:"app:/" encoding:NSUTF8StringEncoding];
   NSString *output = [htmlString stringByReplacingOccurrencesOfString:@"https://0.0.0.0:8888" withString:endpoint];
   return [HTML writeToDisk:output];
 }

@@ -29,6 +29,7 @@
 		265791A92BFFF0E200ED054B /* CertBot.m in Sources */ = {isa = PBXBuildFile; fileRef = 265791A82BFFF0E200ED054B /* CertBot.m */; };
 		26C327A62C01C326006DB6F9 /* Config.m in Sources */ = {isa = PBXBuildFile; fileRef = 26C327A52C01C326006DB6F9 /* Config.m */; };
 		26C327AB2C01D60A006DB6F9 /* HTML.m in Sources */ = {isa = PBXBuildFile; fileRef = 26C327AA2C01D60A006DB6F9 /* HTML.m */; };
+		26C327AE2C01EF7C006DB6F9 /* FileProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 26C327AD2C01EF7C006DB6F9 /* FileProxy.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -64,6 +65,8 @@
 		26C327A52C01C326006DB6F9 /* Config.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Config.m; sourceTree = "<group>"; };
 		26C327A92C01D60A006DB6F9 /* HTML.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HTML.h; sourceTree = "<group>"; };
 		26C327AA2C01D60A006DB6F9 /* HTML.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HTML.m; sourceTree = "<group>"; };
+		26C327AC2C01EF7C006DB6F9 /* FileProxy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FileProxy.h; sourceTree = "<group>"; };
+		26C327AD2C01EF7C006DB6F9 /* FileProxy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FileProxy.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +119,8 @@
 				2657917B2BFF04DA00ED054B /* LocalServer.m */,
 				265791A72BFFF0E200ED054B /* CertBot.h */,
 				265791A82BFFF0E200ED054B /* CertBot.m */,
+				26C327AC2C01EF7C006DB6F9 /* FileProxy.h */,
+				26C327AD2C01EF7C006DB6F9 /* FileProxy.m */,
 			);
 			path = ProxyWebView;
 			sourceTree = "<group>";
@@ -267,6 +272,7 @@
 				2657916C2BFEF6C300ED054B /* main.m in Sources */,
 				265791A92BFFF0E200ED054B /* CertBot.m in Sources */,
 				2657917C2BFF04DA00ED054B /* LocalServer.m in Sources */,
+				26C327AE2C01EF7C006DB6F9 /* FileProxy.m in Sources */,
 				2657915E2BFEF6C300ED054B /* SceneDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

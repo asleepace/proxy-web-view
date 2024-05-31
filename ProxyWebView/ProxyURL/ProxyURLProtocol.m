@@ -22,7 +22,7 @@
 @implementation ProxyURLProtocol
 
 + (BOOL)canInitWithRequest:(NSURLRequest *)request {
-  if (Config.ENABLE_URL_PROXY == false) return false;
+  // if (Config.ENABLE_URL_PROXY == false) return false;
   
   NSLog(@"[ProxyURLProtocol] canInitWithRequest: %@", request.URL.absoluteString);
   // Only handle http and https requests
